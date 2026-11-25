@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交流发电机工作原理 - 3D交互式教学演示（固定纵轴·磁感线常亮）</title>
+    <style>
+        :root {
+            --bg: #f5f5f2;
+            --panel: #fff;
+            --text: #1a1a1a;
+            --border: #ccc;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #e8e8e0;
+            font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+            color: #1a1a1a;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .header {
+            background: #fff;
+            border-bottom: 2px solid #333;
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            z-index: 20;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .header h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+        .main-container {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+        .scene-panel {
+            flex: 1 1 60%;
+            position: relative;
+            background: #fdfdfd;
+            cursor: grab;
+            border-right: 1.5px solid #ccc;
+            overflow: hidden;
+            min-width: 350px;
+            min-height: 350px;
+        }
+        .scene-panel:active {
+            cursor: grabbing;
+        }
+        .scene-panel canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        .tooltip-3d {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(30, 30, 30, 0.9);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 30;
+            max-width: 250px;
+            line-height: 1.5;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            white-space: pre-line;
+        }
+        .tooltip-3d.visible {
+            opacity: 1;
+        }
+        .right-panel {
+            flex: 0 0 440px;
+            display: flex;
+            flex-direction: column;
+            background: #fafaf8;
+            overflow-y: auto;
+            border-left: 1px solid #e0e0e0;
+            min-width: 320px;
+        }
+        .section {
+            padding: 10px 14px;
+            border-bottom: 1px solid #e0e0e0;
+            background: #fff;
+        }
+        .section-title {
+            font-weight: 700;
+            font-size: 0.78rem;
+            color: #444;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        #waveformCanvas {
+            width: 100%;
+            height: 200px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background: #fdfdfd;
+            display: block;
+            cursor: pointer;
+        }
+        .zoom-indicator {
+            font-size: 0.68rem;
+            color: #666;
+            background: #f0f0f0;
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+        }
+        .live-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+        }
+        .lv {
+            background: #f8f8f6;
+            border-radius: 4px;
+            padding: 6px;
+            text-align: center;
+            border: 1px solid #e0e0e0;
+            font-size: 0.7rem;
+        }
+        .lv .lbl {
+            color: #888;
+            font-size: 0.6rem;
+        }
+        .lv .num {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #1a1a1a;
+            font-family: 'SF Mono', 'Consolas', monospace;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .btn {
+            padding: 7px 12px;
+            border-radius: 4px;
+            border: 1.5px solid #555;
+            background: #fff;
+            cursor: pointer;
+            font-size: 0.72rem;
+            font-weight: 600;
+            transition: 0.15s;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .btn:hover {
+            background: #eee;
+        }
+        .btn.active {
+            background: #333;
+            color: #fff;
+        }
+        .ctrl-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.68rem;
+            font-weight: 600;
+        }
+        .ctrl-group input[type="range"] {
+            width: 70px;
+            cursor: pointer;
+        }
+        .formula-box {
+            font-family: 'Times New Roman', 'STIX Two Math', serif;
+            font-size: 0.8rem;
+            background: #fafaf5;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            line-height: 1.7;
+        }
+        .tag {
+            padding: 2px 7px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+            font-size: 0.62rem;
+            transition: 0.3s;
+            background: #fff;
+            display: inline-block;
+        }
+        .tag.hl {
+            background: #ffe8c0;
+            border-color: #e67e22;
+            font-weight: 700;
+        }
+        .tag.hl2 {
+            background: #d0e8ff;
+            border-color: #2980b9;
+            font-weight: 700;
+        }
+        @media (max-width: 860px) {
+            .main-container {
+                flex-direction: column;
+            }
+            .scene-panel {
+                flex: 0 0 45%;
+                min-width: auto;
+                min-height: 300px;
+                border-right: none;
+                border-bottom: 1.5px solid #ccc;
+            }
+            .right-panel {
+                flex: 1 1 auto;
+                border-left: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>⚡ 交流发电机工作原理</h1>
+            <span style="font-size:0.75rem;color:#555;">3D半剖模型 · 法线eₙ⊥线圈平面</span>
+        </div>
+        <span style="font-size:0.65rem;color:#666;">🖱 拖拽旋转 | 滚轮缩放 | 悬停部件查看说明</span>
+    </div>
+    <div class="main-container">
+        <div class="scene-panel" id="scenePanel">
+            <div class="tooltip-3d" id="tooltip3d"></div>
+        </div>
+        <div class="right-panel">
+            <div class="section">
+                <div class="section-title">
+                    <span>📈 感应电动势 ε(t) 波形图</span>
+                    <span class="zoom-indicator" id="zoomLabel">纵轴: 固定 ±6V</span>
+                </div>
+                <canvas id="waveformCanvas" title="滚轮缩放纵轴 | 点击「自动适应」放大细节"></canvas>
+            </div>
+            <div class="section">
+                <div class="live-grid">
+                    <div class="lv"><div class="lbl">磁通量 Φ</div><div class="num" id="vPhi" style="color:#e67e22;">0.0000</div><span style="font-size:0.55rem;">Wb</span></div>
+                    <div class="lv"><div class="lbl">磁链 NΦ</div><div class="num" id="vNPhi" style="color:#e67e22;">0.0000</div><span style="font-size:0.55rem;">Wb</span></div>
+                    <div class="lv"><div class="lbl">电动势 ε</div><div class="num" id="vEps" style="color:#2980b9;">0.0000</div><span style="font-size:0.55rem;">V</span></div>
+                    <div class="lv"><div class="lbl">峰值 εₘ</div><div class="num" id="vEmax" style="color:#27ae60;">0.0000</div><span style="font-size:0.55rem;">V</span></div>
+                    <div class="lv"><div class="lbl">角度 θ</div><div class="num" id="vTheta">0.0°</div></div>
+                    <div class="lv"><div class="lbl">频率 f</div><div class="num" id="vFreq">0.00</div><span style="font-size:0.55rem;">Hz</span></div>
+                </div>
+            </div>
+            <div class="section">
+                <div class="controls" style="margin-bottom:6px;">
+                    <button class="btn" id="btnPlay">⏯ 播放</button>
+                    <button class="btn" id="btnReset">↺ 重置</button>
+                    <button class="btn" id="btnStepBk" title="后退45°">◀ 步进</button>
+                    <button class="btn" id="btnStepFw" title="前进45°">步进 ▶</button>
+                    <button class="btn" id="btnNeutral">⚡ 中性面</button>
+                    <button class="btn" id="btnPeak">📈 峰值位置</button>
+                    <button class="btn" id="btnInfo">🔧 滑环说明</button>
+                </div>
+                <div class="controls">
+                    <div class="ctrl-group"><label>ω</label><input type="range" id="sOmega" min="1" max="12" value="4.5" step="0.1"><span id="dOmega">4.5</span>rad/s</div>
+                    <div class="ctrl-group"><label>N</label><input type="range" id="sN" min="1" max="30" value="10" step="1"><span id="dN">10</span>匝</div>
+                    <button class="btn" id="btnZoomReset" style="font-size:0.68rem;">🔍 重置缩放</button>
+                    <button class="btn" id="btnAutoRange" style="font-size:0.68rem;">🔍 自动适应</button>
+                </div>
+            </div>
+            <div class="section">
+                <div class="formula-box">
+                    <div><b>法拉第定律：</b>ε = −d(NΦ)/dt</div>
+                    <div>NΦ=<span id="fNPhi">0.0000</span>Wb | ε=<span id="fEps">0.0000</span>V</div>
+                    <div>θ=<span id="fTheta">0°</span> cos=<span id="fCos">1.00</span> sin=<span id="fSin">0.00</span></div>
+                </div>
+                <div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap;">
+                    <span class="tag" id="tNeutral">中性面 Φmax ε=0</span>
+                    <span class="tag" id="tPeakP">正向峰值 ε=+εₘ</span>
+                    <span class="tag" id="tPeakN">负向峰值 ε=−εₘ</span>
+                    <span id="tCur" style="font-size:0.65rem;font-weight:600;">电流：—</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.157.0/examples/jsm/" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ============ DOM元素 ============
+        const scenePanel = document.getElementById('scenePanel');
+        const tooltip = document.getElementById('tooltip3d');
+        const wfCanvas = document.getElementById('waveformCanvas');
+        const wfCtx = wfCanvas.getContext('2d');
+
+        // ============ 物理参数 ============
+        const B = 0.8;
+        const S = 0.045;
+        let N = 10;
+        let omega = 4.5;
+        let time = 0;
+        let playing = true;
+        let animId = null;
+
+        // ============ 波形缩放与纵轴模式 ============
+        let waveZoom = 1.0;
+        const ZOOM_MIN = 0.3;
+        const ZOOM_MAX = 5.0;
+        const FIXED_RANGE_V = 6.0;                // 固定纵轴范围 ±6V
+        let fixedRange = FIXED_RANGE_V;            // 默认固定模式
+        const MIN_AUTO_RANGE = 2.5;
+        const AUTO_RANGE_FACTOR = 1.3;
+
+        // ============ Three.js场景 ============
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xfdfdfd);
+        const panelW = Math.max(scenePanel.clientWidth, 500);
+        const panelH = Math.max(scenePanel.clientHeight, 400);
+        const camera = new THREE.PerspectiveCamera(42, panelW / panelH, 0.05, 15);
+        camera.position.set(0.85, 0.6, 1.15);
+        camera.lookAt(0, 0.05, 0);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(panelW, panelH, false);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        scenePanel.appendChild(renderer.domElement);
+        const orbit = new OrbitControls(camera, renderer.domElement);
+        orbit.target.set(0, 0.05, 0);
+        orbit.enableDamping = true;
+        orbit.dampingFactor = 0.15;
+        orbit.minDistance = 0.5;
+        orbit.maxDistance = 3.5;
+        orbit.maxPolarAngle = Math.PI * 0.72;
+        orbit.update();
+
+        // 光照
+        scene.add(new THREE.AmbientLight(0xffffff, 3.0));
+        const dl = new THREE.DirectionalLight(0xffffff, 5.0);
+        dl.position.set(3, 4, 3);
+        dl.castShadow = true;
+        dl.shadow.mapSize.set(1024, 1024);
+        scene.add(dl);
+        scene.add(new THREE.DirectionalLight(0xddeeff, 2.5).position.set(-1.5, 0.8, -1));
+        scene.add(new THREE.DirectionalLight(0xffffff, 1.5).position.set(0, -0.3, 2));
+
+        const gnd = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshStandardMaterial({ color: 0xf4f4f0 }));
+        gnd.rotation.x = -Math.PI / 2;
+        gnd.position.y = -1.0;
+        gnd.receiveShadow = true;
+        scene.add(gnd);
+
+        // 标签函数
+        function spriteLabel(text, pos, color, sc) {
+            const cv = document.createElement('canvas');
+            cv.width = 128; cv.height = 64;
+            const cx = cv.getContext('2d');
+            cx.fillStyle = color;
+            cx.font = 'bold 38px "PingFang SC","Microsoft YaHei"';
+            cx.textAlign = 'center'; cx.textBaseline = 'middle';
+            cx.fillText(text, 64, 32);
+            const tx = new THREE.CanvasTexture(cv);
+            tx.minFilter = THREE.LinearFilter;
+            const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tx, transparent: true, depthTest: false, depthWrite: false }));
+            sp.position.copy(pos);
+            sp.scale.set(sc.x, sc.y, 1);
+            return sp;
+        }
+
+        // 磁极
+        const magGeo = new THREE.BoxGeometry(0.14, 0.45, 0.45);
+        const magN = new THREE.Mesh(magGeo, new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.3 }));
+        magN.position.set(-0.38, 0, 0); magN.castShadow = magN.receiveShadow = true; magN.name = 'N极磁铁'; scene.add(magN);
+        const magS = new THREE.Mesh(magGeo, new THREE.MeshStandardMaterial({ color: 0x2e6cb5, roughness: 0.3 }));
+        magS.position.set(0.38, 0, 0); magS.castShadow = magS.receiveShadow = true; magS.name = 'S极磁铁'; scene.add(magS);
+        scene.add(spriteLabel('N', new THREE.Vector3(-0.38, 0.3, 0), '#e74c3c', { x: 0.2, y: 0.1 }));
+        scene.add(spriteLabel('S', new THREE.Vector3(0.38, 0.3, 0), '#5b9bd5', { x: 0.2, y: 0.1 }));
+
+        // ============ 磁感线（始终可见，不透明，不虚化） ============
+        const fieldGrp = new THREE.Group(); scene.add(fieldGrp);
+        const fLines = []; const nFL = 11;
+        for (let i = 0; i < nFL; i++) {
+            const y = -0.2 + i * 0.04;
+            const lg = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0x7eb8da,
+                roughness: 0.4,
+                emissive: 0x112233,
+                emissiveIntensity: 0.3
+            });
+            const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.5, 8), mat);
+            sh.rotation.z = -Math.PI / 2; sh.position.set(0, y, 0); lg.add(sh);
+            const tp = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.07, 8), mat.clone());
+            tp.rotation.z = -Math.PI / 2; tp.position.set(0.25, y, 0); lg.add(tp);
+            lg.userData = { mat }; fieldGrp.add(lg); fLines.push(lg);
+        }
+
+        // 转轴
+        const axisGrp = new THREE.Group(); axisGrp.name = "转轴OO'";
+        axisGrp.add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.8, 20), new THREE.MeshStandardMaterial({ color: 0x777777, metalness: 0.8 })));
+        scene.add(axisGrp);
+        scene.add(spriteLabel('O', new THREE.Vector3(0.05, 0.44, 0.04), '#555', { x: 0.08, y: 0.04 }));
+        scene.add(spriteLabel("O'", new THREE.Vector3(0.05, -0.44, 0.04), '#555', { x: 0.1, y: 0.05 }));
+
+        // 线圈旋转组
+        const pivot = new THREE.Group(); scene.add(pivot);
+        const cW = 0.38, cH = 0.26, hw = cW / 2, hh = cH / 2;
+
+        const frame = new THREE.Group(); frame.name = '矩形线圈'; pivot.add(frame);
+        (function() {
+            const m = new THREE.MeshStandardMaterial({ color: 0xc8943e, roughness: 0.2, metalness: 0.7, emissive: 0x1a0e00, emissiveIntensity: 0.25 });
+            const t = 0.018;
+            const add = (dx, dy, dz, x, y, z) => { const g = new THREE.BoxGeometry(dx, dy, dz); const me = new THREE.Mesh(g, m); me.position.set(x, y, z); me.castShadow = true; frame.add(me); };
+            add(t * 1.4, t, cW, 0, hh, 0); add(t * 1.4, t, cW, 0, -hh, 0);
+            add(t, cH, t * 1.4, 0, 0, -hw); add(t, cH, t * 1.4, 0, 0, hw);
+        })();
+
+        // 法线eₙ
+        const enGrp = new THREE.Group(); enGrp.name = '正法线eₙ'; pivot.add(enGrp);
+        (function() {
+            const len = 0.26; const m = new THREE.MeshStandardMaterial({ color: 0x27ae60, emissive: 0x0a2a0a, emissiveIntensity: 0.5 });
+            const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.013, len * 0.7, 12), m);
+            sh.position.set(len * 0.35, 0, 0); sh.rotation.z = -Math.PI / 2; enGrp.add(sh);
+            const tp = new THREE.Mesh(new THREE.ConeGeometry(0.028, len * 0.3, 12), m.clone());
+            tp.position.set(len * 0.85, 0, 0); tp.rotation.z = -Math.PI / 2; enGrp.add(tp);
+            enGrp.add(spriteLabel('eₙ', new THREE.Vector3(len + 0.06, 0.04, 0), '#27ae60', { x: 0.09, y: 0.045 }));
+        })();
+
+        // 滑环
+        const slipGrp = new THREE.Group(); slipGrp.name = '滑环组'; pivot.add(slipGrp);
+        const srY1 = 0.28, srY2 = 0.36, srR = 0.04;
+        (function() {
+            const m = new THREE.MeshStandardMaterial({ color: 0xd4a85c, roughness: 0.2, metalness: 0.85, emissive: 0x1a0e00, emissiveIntensity: 0.3 });
+            [srY1, srY2].forEach(y => { const torus = new THREE.Mesh(new THREE.TorusGeometry(srR, 0.014, 14, 28), m); torus.position.y = y; torus.rotation.x = Math.PI / 2; slipGrp.add(torus); });
+        })();
+
+        // 电刷
+        const brushGrp = new THREE.Group(); brushGrp.name = '电刷(固定)'; scene.add(brushGrp);
+        (function() {
+            const m = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.6 });
+            [srY1, srY2].forEach(y => { const b = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.02, 0.03), m); b.position.set(srR + 0.02, y, 0); brushGrp.add(b); });
+        })();
+
+        // 外电路
+        const circGrp = new THREE.Group(); circGrp.name = '外电路'; scene.add(circGrp);
+        (function() {
+            const wireMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, metalness: 0.7 });
+            const bx = srR + 0.05;
+            const addWire = (l, x, y, z, rx, ry, rz) => { const g = new THREE.CylinderGeometry(0.006, 0.006, l, 8); const m = new THREE.Mesh(g, wireMat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); circGrp.add(m); };
+            addWire(0.2, bx + 0.1, srY1, 0, 0, 0, Math.PI / 2); addWire(0.2, bx + 0.1, srY2, 0, 0, 0, Math.PI / 2);
+            addWire(0.45, bx + 0.2, srY1 - 0.2, 0, 0, 0, 0); addWire(0.45, bx + 0.2, srY2 + 0.2, 0, 0, 0, 0);
+
+            const amX = bx + 0.2, amY = -0.1;
+            const amBody = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 24), new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.4, metalness: 0.3 }));
+            amBody.rotation.x = Math.PI / 2; amBody.position.set(amX, amY, 0); circGrp.add(amBody);
+            const amFace = new THREE.Mesh(new THREE.CircleGeometry(0.055, 24), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }));
+            amFace.position.set(amX, amY, 0.021); circGrp.add(amFace);
+            const ptrGroup = new THREE.Group(); ptrGroup.position.set(amX, amY, 0.024); ptrGroup.name = 'ammPointer';
+            const ptrGeo = new THREE.BoxGeometry(0.003, 0.05, 0.003); ptrGeo.translate(0, 0.025, 0);
+            ptrGroup.add(new THREE.Mesh(ptrGeo, new THREE.MeshStandardMaterial({ color: 0x111111 }))); circGrp.add(ptrGroup);
+
+            const rX = amX, rY = -0.35;
+            const resistorGeo = new THREE.BoxGeometry(0.12, 0.06, 0.05);
+            const resistorMat = new THREE.MeshStandardMaterial({ color: 0xd4a017, roughness: 0.35, metalness: 0.4, emissive: 0x332200, emissiveIntensity: 0.3 });
+            const resistor = new THREE.Mesh(resistorGeo, resistorMat); resistor.position.set(rX, rY, 0); resistor.castShadow = true; resistor.receiveShadow = true; resistor.name = '电阻R'; circGrp.add(resistor);
+            circGrp.add(spriteLabel('R', new THREE.Vector3(rX, rY + 0.11, 0.04), '#222', { x: 0.08, y: 0.04 }));
+
+            addWire(0.2, amX, amY - 0.12, 0, 0, 0, 0); addWire(0.25, rX, rY - 0.16, 0, 0, 0, 0);
+            addWire(0.3, rX - 0.12, -0.55, 0, 0, 0, Math.PI / 2); addWire(0.55, rX - 0.27, -0.55 + 0.25, 0, 0, 0, 0);
+            addWire(0.25, bx + 0.1, srY2 + 0.3, 0, 0, 0, Math.PI / 2);
+        })();
+
+        // 电流粒子
+        const partGrp = new THREE.Group(); pivot.add(partGrp);
+        const parts = []; const nP = 20; const pGeo = new THREE.SphereGeometry(0.012, 6, 6);
+        for (let i = 0; i < nP; i++) { const s = new THREE.Mesh(pGeo, new THREE.MeshBasicMaterial({ color: 0xe74c3c })); s.visible = false; partGrp.add(s); parts.push(s); }
+
+        function updateParticles(theta, dir) {
+            const perim = 2 * (cW + cH); const speed = omega * 0.12; const base = (time * speed * dir) % 1;
+            for (let i = 0; i < nP; i++) {
+                let t = (base + i / nP) % 1; if (t < 0) t += 1; const d = t * perim;
+                let x = 0, y = 0, z = 0; const lens = [cW, cH, cW, cH]; const starts = [0, cW, cW + cH, 2 * cW + cH]; let seg = 0, loc = d;
+                for (let s = 3; s >= 0; s--) { if (d >= starts[s]) { seg = s; loc = d - starts[s]; break; } }
+                switch (seg) {
+                    case 0: x = 0; y = hh; z = -hw + loc; break;
+                    case 1: x = 0; y = hh - loc; z = hw; break;
+                    case 2: x = 0; y = -hh; z = hw - loc; break;
+                    case 3: x = 0; y = -hh + loc; z = -hw; break;
+                }
+                parts[i].position.set(x, y, z); parts[i].visible = true;
+                parts[i].material.color.set(dir > 0 ? 0xe74c3c : 0x3498db);
+            }
+        }
+
+        // ============ 波形图绘制 ============
+        function drawWave() {
+            const cw = wfCanvas.width, ch = wfCanvas.height;
+            if (cw < 10 || ch < 10) return;
+            wfCtx.clearRect(0, 0, cw, ch);
+            wfCtx.fillStyle = '#fdfdfd'; wfCtx.fillRect(0, 0, cw, ch);
+
+            const mrg = { t: 18, r: 36, b: 30, l: 48 };
+            const pw = cw - mrg.l - mrg.r, ph = ch - mrg.t - mrg.b;
+            const ox = mrg.l, oy = mrg.t, my = oy + ph / 2, ex = ox + pw;
+
+            const Em = N * B * S * omega;
+            const T = 2 * Math.PI / omega;
+            const tShow = Math.max(T * 1.8, 3.5);
+            const xs = pw / tShow;
+
+            // 显示范围：固定模式或自动适应
+            let displayMaxV;
+            if (fixedRange !== null) {
+                displayMaxV = fixedRange / waveZoom;
+            } else {
+                const autoRange = Math.max(MIN_AUTO_RANGE, Em * AUTO_RANGE_FACTOR);
+                displayMaxV = autoRange / waveZoom;
+            }
+            const yScale = (ph / 2) / displayMaxV;
+
+            // 网格
+            wfCtx.strokeStyle = '#eee'; wfCtx.lineWidth = 0.5;
+            for (let i = 0; i <= 8; i++) { const y = oy + (ph / 8) * i; wfCtx.beginPath(); wfCtx.moveTo(ox, y); wfCtx.lineTo(ex, y); wfCtx.stroke(); }
+
+            // 坐标轴
+            wfCtx.strokeStyle = '#333'; wfCtx.lineWidth = 1.8;
+            wfCtx.beginPath(); wfCtx.moveTo(ox, my); wfCtx.lineTo(ex + 6, my); wfCtx.moveTo(ox, oy - 4); wfCtx.lineTo(ox, oy + ph + 4); wfCtx.stroke();
+            wfCtx.fillStyle = '#333'; wfCtx.font = 'italic 13px "Times New Roman"'; wfCtx.textAlign = 'center';
+            wfCtx.fillText('t (s)', ex + 14, my + 4); wfCtx.fillText('ε (V)', ox - 8, oy - 10);
+
+            // 峰值标记线
+            const drawPeakLine = (val, label) => {
+                const yp = my - val * yScale;
+                if (yp >= oy && yp <= oy + ph) {
+                    wfCtx.fillStyle = '#888'; wfCtx.textAlign = 'right'; wfCtx.fillText(label, ox - 6, yp + 4);
+                    wfCtx.strokeStyle = '#ccc'; wfCtx.setLineDash([3, 3]); wfCtx.lineWidth = 1;
+                    wfCtx.beginPath(); wfCtx.moveTo(ox, yp); wfCtx.lineTo(ex, yp); wfCtx.stroke(); wfCtx.setLineDash([]);
+                }
+            };
+            if (Em > 0.0001) { drawPeakLine(Em, '+εₘ'); drawPeakLine(-Em, '−εₘ'); }
+
+            // 正弦曲线
+            wfCtx.strokeStyle = '#2980b9'; wfCtx.lineWidth = 2.5;
+            wfCtx.beginPath();
+            for (let i = 0; i <= 500; i++) { const tv = (i / 500) * tShow; const ev = Em * Math.sin(omega * tv); const xp = ox + tv * xs; const yp = my - ev * yScale; i === 0 ? wfCtx.moveTo(xp, yp) : wfCtx.lineTo(xp, yp); }
+            wfCtx.stroke();
+
+            // 当前时间红点
+            const ct = time % tShow;
+            const cx = ox + ct * xs;
+            let cy = my - Em * Math.sin(omega * ct) * yScale;
+            cy = Math.max(oy, Math.min(oy + ph, cy));
+
+            if (cx >= ox && cx <= ex) {
+                wfCtx.strokeStyle = '#c0392b'; wfCtx.setLineDash([3, 3]); wfCtx.lineWidth = 1.5;
+                wfCtx.beginPath(); wfCtx.moveTo(cx, oy); wfCtx.lineTo(cx, oy + ph); wfCtx.stroke(); wfCtx.setLineDash([]);
+                wfCtx.fillStyle = '#e74c3c';
+                wfCtx.beginPath(); wfCtx.arc(cx, cy, 8, 0, Math.PI * 2); wfCtx.fill();
+                wfCtx.strokeStyle = '#fff'; wfCtx.lineWidth = 2.5; wfCtx.stroke();
+                wfCtx.fillStyle = 'rgba(231, 76, 60, 0.3)';
+                wfCtx.beginPath(); wfCtx.arc(cx, cy, 12, 0, Math.PI * 2); wfCtx.fill();
+            }
+        }
+
+        // ============ 更新所有显示 ============
+        function update() {
+            const th = omega * time;
+            const Em = N * B * S * omega;
+            const eps = Em * Math.sin(th);
+            const phi = N * B * S * Math.cos(th);
+            const ct = Math.cos(th);
+
+            document.getElementById('vPhi').textContent = phi.toFixed(4);
+            document.getElementById('vNPhi').textContent = phi.toFixed(4);
+            document.getElementById('vEps').textContent = eps.toFixed(4);
+            document.getElementById('vEmax').textContent = Em.toFixed(4);
+            document.getElementById('vTheta').textContent = ((th % (2 * Math.PI)) * 180 / Math.PI).toFixed(1) + '°';
+            document.getElementById('vFreq').textContent = (omega / (2 * Math.PI)).toFixed(3);
+            document.getElementById('fNPhi').textContent = phi.toFixed(4);
+            document.getElementById('fEps').textContent = eps.toFixed(4);
+            document.getElementById('fTheta').textContent = ((th % (2 * Math.PI)) * 180 / Math.PI).toFixed(1) + '°';
+            document.getElementById('fCos').textContent = ct.toFixed(2);
+            document.getElementById('fSin').textContent = Math.sin(th).toFixed(2);
+
+            const ac = Math.abs(ct), as = Math.abs(Math.sin(th));
+            document.getElementById('tNeutral').className = 'tag' + (ac > 0.98 ? ' hl' : '');
+            document.getElementById('tPeakP').className = 'tag' + (as > 0.98 && eps > 0 ? ' hl2' : '');
+            document.getElementById('tPeakN').className = 'tag' + (as > 0.98 && eps < 0 ? ' hl2' : '');
+            document.getElementById('tCur').textContent = '电流：' + (eps > 0.001 ? '逆时针' : eps < -0.001 ? '顺时针' : '零');
+
+            pivot.rotation.y = th;
+
+            // 磁感线保持完全可见，不改变透明度
+            fLines.forEach((l) => { l.visible = true; });
+
+            const dir = eps > 0.001 ? 1 : (eps < -0.001 ? -1 : 0);
+            if (dir !== 0) { updateParticles(th, dir); partGrp.visible = true; } else { partGrp.visible = false; }
+
+            const ptr = circGrp.getObjectByName('ammPointer');
+            if (ptr) { const maxAngle = Math.PI * 0.6; const norm = Em > 0.0001 ? eps / Em : 0; ptr.rotation.z = norm * maxAngle; }
+
+            const ww = wfCanvas.parentElement.clientWidth;
+            if (ww > 0) { wfCanvas.width = ww * 2; wfCanvas.height = 400; }
+            drawWave();
+
+            // 纵轴标签与按钮状态
+            if (fixedRange !== null) {
+                document.getElementById('zoomLabel').textContent = `纵轴固定: ±${(fixedRange/waveZoom).toFixed(2)}V`;
+                document.getElementById('btnAutoRange').textContent = '🔍 自动适应';
+                document.getElementById('btnAutoRange').classList.remove('active');
+            } else {
+                const autoRange = Math.max(MIN_AUTO_RANGE, Em * AUTO_RANGE_FACTOR);
+                document.getElementById('zoomLabel').textContent = `纵轴自动: ±${(autoRange/waveZoom).toFixed(2)}V`;
+                document.getElementById('btnAutoRange').textContent = '🔒 固定±6V';
+                document.getElementById('btnAutoRange').classList.add('active');
+            }
+        }
+
+        // ============ 动画循环 ============
+        let lastT = null;
+        function loop(ts) {
+            animId = requestAnimationFrame(loop);
+            if (lastT === null) lastT = ts;
+            let dt = (ts - lastT) / 1000; lastT = ts;
+            if (dt > 0.1) dt = 0.1; if (dt <= 0) dt = 0.016;
+            if (playing) { time += dt; if (time > 200) time -= 100; }
+            update(); orbit.update(); renderer.render(scene, camera);
+        }
+
+        // ============ 按钮事件 ============
+        const Tperiod = () => 2 * Math.PI / omega;
+        document.getElementById('btnPlay').onclick = () => { playing = !playing; document.getElementById('btnPlay').textContent = playing ? '⏯ 播放' : '▶ 暂停'; if (playing) lastT = null; };
+        document.getElementById('btnReset').onclick = () => { time = 0; N = 10; omega = 4.5; waveZoom = 1.0; fixedRange = FIXED_RANGE_V; document.getElementById('sN').value = 10; document.getElementById('dN').textContent = '10'; document.getElementById('sOmega').value = 4.5; document.getElementById('dOmega').textContent = '4.5'; update(); lastT = null; };
+        document.getElementById('btnStepFw').onclick = () => { time += Tperiod() / 8; update(); };
+        document.getElementById('btnStepBk').onclick = () => { time = Math.max(0, time - Tperiod() / 8); update(); };
+        document.getElementById('btnNeutral').onclick = () => { time = Math.round(time / Tperiod()) * Tperiod(); playing = false; document.getElementById('btnPlay').textContent = '▶ 暂停'; lastT = null; update(); };
+        document.getElementById('btnPeak').onclick = () => { time = Math.round(time / Tperiod()) * Tperiod() + Tperiod() / 4; playing = false; document.getElementById('btnPlay').textContent = '▶ 暂停'; lastT = null; update(); };
+        document.getElementById('btnInfo').onclick = () => alert('🔧 滑环（集电环）工作原理：\n\n滑环随线圈同步转动，始终与固定的石墨电刷滑动接触。\n作用：避免导线缠绕，持续将线圈中的交变电流引出到外电路。');
+        document.getElementById('btnZoomReset').onclick = () => { waveZoom = 1.0; update(); };
+        document.getElementById('btnAutoRange').onclick = () => { fixedRange = (fixedRange === null) ? FIXED_RANGE_V : null; update(); };
+        document.getElementById('sOmega').oninput = function() { omega = +this.value; document.getElementById('dOmega').textContent = omega.toFixed(1); update(); };
+        document.getElementById('sN').oninput = function() { N = Math.round(+this.value); document.getElementById('dN').textContent = N; update(); };
+
+        // 波形图滚轮缩放
+        wfCanvas.addEventListener('wheel', (e) => { e.preventDefault(); e.stopPropagation(); const delta = e.deltaY > 0 ? -0.1 : 0.1; const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, waveZoom + delta)); if (newZoom !== waveZoom) { waveZoom = newZoom; update(); } }, { passive: false });
+
+        // 键盘快捷键
+        window.addEventListener('keydown', e => {
+            if (e.key === ' ') { e.preventDefault(); document.getElementById('btnPlay').click(); }
+            else if (e.key === 'r' || e.key === 'R') { e.preventDefault(); document.getElementById('btnReset').click(); }
+            else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); document.getElementById('btnNeutral').click(); }
+            else if (e.key === 'p' || e.key === 'P') { e.preventDefault(); document.getElementById('btnPeak').click(); }
+            else if (e.key === 'ArrowLeft') { e.preventDefault(); time = Math.max(0, time - Tperiod() / 8); update(); }
+            else if (e.key === 'ArrowRight') { e.preventDefault(); time += Tperiod() / 8; update(); }
+        });
+
+        // 3D悬停提示
+        const infoMap = { 'N极磁铁': 'N极永久磁铁\n产生水平向右的磁场B⃗', 'S极磁铁': 'S极永久磁铁\n与N极共同形成匀强磁场', '矩形线圈': 'N匝矩形线圈（转子）\n绕轴旋转切割磁感线', '正法线eₙ': '线圈平面正法线\n始终⊥线圈平面\n与B⃗夹角θ=ωt', "转轴OO'": '线圈绕此轴匀速旋转\n角速度为ω', '滑环组': '铜质集电环\n随线圈转动', '电刷(固定)': '石墨电刷（固定）\n与滑环滑动接触引出电流', '外电路': '包含电流表与负载电阻R', '电阻R': '负载电阻R\n外电路中的电阻元件\n电流i = ε / R' };
+        const raycaster = new THREE.Raycaster(); const mouse = new THREE.Vector2(); let hovered = '';
+        renderer.domElement.addEventListener('mousemove', e => {
+            const r = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1; mouse.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects([magN, magS, frame, enGrp, axisGrp, slipGrp, brushGrp, circGrp], true);
+            let name = null; for (const h of hits) { let o = h.object; while (o) { if (o.name && infoMap[o.name]) { name = o.name; break; } o = o.parent; } if (name) break; }
+            if (name && name !== hovered) { hovered = name; tooltip.innerHTML = '<b>' + name + '</b>\n' + infoMap[name]; tooltip.classList.add('visible'); tooltip.style.left = (e.clientX - r.left + 18) + 'px'; tooltip.style.top = (e.clientY - r.top - 70) + 'px'; scenePanel.style.cursor = 'pointer'; }
+            else if (!name && hovered) { hovered = ''; tooltip.classList.remove('visible'); scenePanel.style.cursor = 'grab'; }
+        });
+        renderer.domElement.addEventListener('click', () => { if (hovered) alert(hovered + '\n\n' + infoMap[hovered]); });
+
+        function resize() { const w = scenePanel.clientWidth, h = scenePanel.clientHeight; if (w > 0 && h > 0) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); } update(); }
+        window.addEventListener('resize', resize);
+
+        resize(); update(); lastT = null; requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
