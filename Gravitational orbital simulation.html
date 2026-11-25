@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>万有引力 - 天体轨道模拟</title>
+<style>
+  :root {
+    --bg: #0f0f1a; --panel-bg: #181830; --text: #c8c8d8;
+    --accent: #4da6ff; --accent2: #ff6b6b; --slider-track: #2a2a45;
+    --card-bg: #1e1e38; --border: #2a2a45;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:var(--bg); font-family:"Microsoft YaHei","PingFang SC","Helvetica Neue",sans-serif;
+    overflow:hidden; height:100vh; display:flex; user-select:none;
+  }
+  .canvas-wrap { flex:1; position:relative; background:#000005; min-width:0; cursor:grab; }
+  .canvas-wrap:active { cursor:grabbing; }
+  canvas { display:block; width:100%; height:100%; }
+  .hint { position:absolute; bottom:12px; left:16px; color:#444; font-size:12px; pointer-events:none; }
+
+  .panel { width:330px; background:var(--panel-bg); color:var(--text); overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:14px; scrollbar-width:thin; scrollbar-color:#333 transparent; }
+  .panel::-webkit-scrollbar { width:5px; }
+  .panel::-webkit-scrollbar-thumb { background:#333; border-radius:3px; }
+  .panel h2 { font-size:17px; font-weight:600; color:#fff; text-align:center; letter-spacing:1px; padding-bottom:4px; }
+  .card { background:var(--card-bg); border-radius:10px; padding:12px 14px; border:1px solid var(--border); }
+  .card-title { font-size:13px; font-weight:600; color:var(--accent); margin-bottom:10px; letter-spacing:0.5px; text-transform:uppercase; }
+
+  .presets { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+  .preset-btn { padding:8px 6px; border-radius:6px; border:1px solid var(--border); background:var(--slider-track); color:#aaa; cursor:pointer; font-size:11px; transition:all 0.2s; text-align:center; font-family:inherit; }
+  .preset-btn:hover { border-color:var(--accent); color:#fff; }
+  .preset-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .slider-group { margin-bottom:10px; }
+  .slider-group:last-child { margin-bottom:0; }
+  .slider-label { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; }
+  .slider-label span:last-child { color:var(--accent); font-weight:600; font-family:"SF Mono","Consolas",monospace; }
+  input[type="range"] { -webkit-appearance:none; width:100%; height:6px; border-radius:3px; background:var(--slider-track); outline:none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid #fff; transition:transform 0.1s; }
+  input[type="range"]::-webkit-slider-thumb:hover { transform:scale(1.15); }
+
+  .btn-row { display:flex; gap:6px; flex-wrap:wrap; }
+  .btn { padding:7px 14px; border-radius:6px; border:1px solid var(--border); background:var(--slider-track); color:#ccc; cursor:pointer; font-size:12px; font-family:inherit; transition:all 0.2s; white-space:nowrap; }
+  .btn:hover { border-color:var(--accent); color:#fff; }
+  .btn.accent { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:4px 0; font-size:12px; }
+  .toggle { width:40px; height:22px; border-radius:11px; background:#444; cursor:pointer; position:relative; transition:background 0.2s; flex-shrink:0; }
+  .toggle.on { background:var(--accent); }
+  .toggle::after { content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:#fff; top:2px; left:2px; transition:left 0.2s; }
+  .toggle.on::after { left:20px; }
+
+  .data-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .data-item { background:var(--slider-track); border-radius:6px; padding:7px 10px; text-align:center; }
+  .data-val { font-size:14px; font-weight:700; color:#fff; font-family:"SF Mono","Consolas",monospace; }
+  .data-unit { font-size:10px; color:#888; margin-top:2px; }
+
+  .body-list { max-height:150px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:#333 transparent; }
+  .body-list::-webkit-scrollbar { width:4px; }
+  .body-list::-webkit-scrollbar-thumb { background:#333; border-radius:2px; }
+  .body-row { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:11px; cursor:pointer; border-radius:4px; transition:background 0.15s; }
+  .body-row:hover { background:rgba(255,255,255,0.05); }
+  .body-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .body-info { flex:1; min-width:0; }
+  .body-info .name { color:#ddd; }
+  .body-info .data { color:#888; font-size:10px; }
+</style>
+</head>
+<body>
+
+<div class="canvas-wrap" id="canvasWrap">
+  <canvas id="canvas"></canvas>
+  <div class="hint">🖱 滚轮缩放 | 拖拽平移 | 空格暂停 | 点击天体查看信息</div>
+</div>
+
+<div class="panel" id="panel">
+  <h2>🌌 万有引力 · 天体轨道</h2>
+
+  <div class="card">
+    <div class="card-title">预设场景</div>
+    <div class="presets">
+      <button class="preset-btn active" data-preset="solar">☀ 太阳系</button>
+      <button class="preset-btn" data-preset="earthMoon">🌍 地月系统</button>
+      <button class="preset-btn" data-preset="binary">🔵🔴 双星系统</button>
+      <button class="preset-btn" data-preset="figure8">∞ 三体8字轨</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">物理参数</div>
+    <div class="slider-group">
+      <div class="slider-label"><span>引力常数 G</span><span id="valG">100</span></div>
+      <input type="range" id="sliderG" min="10" max="500" step="10" value="100">
+    </div>
+    <div class="slider-group" style="margin-bottom:0">
+      <div class="slider-label"><span>时间步长 dt (ms)</span><span id="valDt">16</span></div>
+      <input type="range" id="sliderDt" min="2" max="50" step="1" value="16">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">运行控制</div>
+    <div class="btn-row" style="margin-bottom:8px">
+      <button class="btn accent" id="btnPlay">⏸ 暂停</button>
+      <button class="btn" id="btnReset">↺ 重置</button>
+      <button class="btn" id="btnClear">✕ 清除轨迹</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn" data-speed="0.25">0.25x</button>
+      <button class="btn active" data-speed="1">1x</button>
+      <button class="btn" data-speed="3">3x</button>
+      <button class="btn" data-speed="10">10x</button>
+      <button class="btn" data-speed="30">30x</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">显示选项</div>
+    <div class="toggle-row"><span>显示轨道轨迹</span><div class="toggle on" id="toggleTrail"></div></div>
+    <div class="toggle-row"><span>显示速度矢量</span><div class="toggle on" id="toggleVel"></div></div>
+    <div class="toggle-row"><span>显示引力连线</span><div class="toggle" id="toggleForce"></div></div>
+    <div class="toggle-row"><span>显示预测轨道</span><div class="toggle on" id="togglePredict"></div></div>
+    <div class="toggle-row"><span>显示天体标签</span><div class="toggle on" id="toggleLabel"></div></div>
+  </div>
+
+  <div class="card" id="cardSelected" style="display:none">
+    <div class="card-title" id="selectedName">天体信息</div>
+    <div class="data-grid">
+      <div class="data-item"><div class="data-val" id="dataMass">--</div><div class="data-unit">质量 (相对)</div></div>
+      <div class="data-item"><div class="data-val" id="dataSpeed">--</div><div class="data-unit">速率</div></div>
+      <div class="data-item"><div class="data-val" id="dataDist">--</div><div class="data-unit">距质心</div></div>
+      <div class="data-item"><div class="data-val" id="dataKE">--</div><div class="data-unit">动能</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">天体列表</div>
+    <div class="body-list" id="bodyList"></div>
+  </div>
+</div>
+
+<script>
+// ===== DOM =====
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvasWrap');
+let W, H;
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ===== State =====
+const st = {
+  G: 100,
+  dt: 0.016,
+  bodies: [],
+  running: true,
+  simSpeed: 1,
+  showTrail: true,
+  showVel: true,
+  showForce: false,
+  showPredict: true,
+  showLabel: true,
+  selectedIdx: -1,
+  // view
+  ox: 0, oy: 0, scale: 1,
+  // starfield
+  stars: [],
+  totalEnergy: 0,
+  time: 0,
+};
+
+// ===== Body class =====
+function Body(name, mass, x, y, vx, vy, color, radius) {
+  return {
+    name, mass, x, y, vx, vy, color, radius,
+    ax: 0, ay: 0,  // acceleration cache
+    trail: [],
+    maxTrail: 600,
+  };
+}
+
+// ===== Starfield =====
+function initStars() {
+  st.stars = [];
+  for (let i = 0; i < 300; i++) {
+    st.stars.push({
+      x: Math.random() * 2000 - 1000,
+      y: Math.random() * 2000 - 1000,
+      r: Math.random() * 1.5 + 0.3,
+      b: Math.random() * 0.5 + 0.3,
+      twinkle: Math.random() * Math.PI * 2,
+      twinkleSpeed: Math.random() * 0.02 + 0.005,
+    });
+  }
+}
+initStars();
+
+// ===== Presets =====
+function applyPreset(name) {
+  st.bodies = [];
+  st.G = 100;
+  st.dt = 0.016;
+  st.time = 0;
+  st.selectedIdx = -1;
+
+  if (name === 'solar') {
+    st.G = 150;
+    st.bodies.push(Body('太阳', 1000, 0, 0, 0, 0, [255,200,50], 18));
+    st.bodies.push(Body('水星', 0.3, 80, 0, 0, Math.sqrt(st.G*1000/80)*1.0, [180,180,200], 4));
+    st.bodies.push(Body('金星', 0.8, 130, 0, 0, Math.sqrt(st.G*1000/130)*1.0, [220,180,120], 6));
+    st.bodies.push(Body('地球', 5, 185, 0, 0, Math.sqrt(st.G*1000/185)*1.0, [60,140,255], 6));
+    st.bodies.push(Body('火星', 0.5, 240, 0, 0, Math.sqrt(st.G*1000/240)*1.0, [220,80,50], 5));
+    st.bodies.push(Body('木星', 8, 340, 0, 0, Math.sqrt(st.G*1000/340)*1.0, [200,160,100], 13));
+    // Moon orbiting Earth (must be inside Hill sphere: r_H ≈ 185×(5/3000)^(1/3) ≈ 22px)
+    const earth = st.bodies[3]; // 地球是第4个天体（索引3）
+    const moonDist = 12;
+    const moonV = Math.sqrt(st.G*earth.mass/moonDist);
+    st.bodies.push(Body('月球', 0.07, earth.x+moonDist, earth.y, earth.vx, earth.vy+moonV, [180,180,190], 3.5));
+  } else if (name === 'earthMoon') {
+    st.G = 50;
+    st.bodies.push(Body('地球', 100, 0, 0, 0, 0, [60,140,255], 14));
+    const moonDist = 80;
+    const moonV = Math.sqrt(st.G*100/moonDist);
+    st.bodies.push(Body('月球', 1.2, moonDist, 0, 0, moonV, [200,200,210], 6));
+    // Add a satellite
+    const satDist = 35;
+    const satV = Math.sqrt(st.G*100/satDist);
+    st.bodies.push(Body('卫星', 0.01, satDist, 0, 0, satV*1.05, [255,255,255], 2.5));
+  } else if (name === 'binary') {
+    st.G = 80;
+    const sep = 100;
+    const v = Math.sqrt(st.G*50/(sep*2));
+    st.bodies.push(Body('恒星A', 80, -sep/2, 0, 0, v, [255,180,60], 14));
+    st.bodies.push(Body('恒星B', 50, sep/2, 0, 0, -v*80/50, [255,120,60], 11));
+    // planet orbiting both
+    const planetDist = 200;
+    const pV = Math.sqrt(st.G*130/planetDist);
+    st.bodies.push(Body('行星', 0.5, planetDist, 0, 0, pV, [100,180,255], 5));
+  } else if (name === 'figure8') {
+    // Moore-Chenciner figure-8 3-body choreography
+    // Scale invariance: pos×S, vel×√(G/S), period×√(S³/G)
+    st.G = 240;
+    st.dt = 0.016;
+    const S = 50;                     // position scale (px)
+    const vScale = Math.sqrt(st.G / S); // velocity scale ≈ 2.191
+    st.bodies.push(Body('天体1', 1, -0.97000436*S,  0.24308753*S,  0.466203685*vScale,  0.43236573*vScale, [255,100,80], 6));
+    st.bodies.push(Body('天体2', 1,  0.97000436*S, -0.24308753*S,  0.466203685*vScale,  0.43236573*vScale, [80,200,255], 6));
+    st.bodies.push(Body('天体3', 1,  0,            0,            -0.93240737*vScale, -0.86473146*vScale, [100,255,100], 6));
+  }
+
+  // Reset view - center on origin where Sun/primary body sits
+  st.ox = 0; st.oy = 0; st.scale = 1;
+  updateBodyList();
+}
+
+// ===== Physics (Velocity Verlet) =====
+function computeAccelerations() {
+  const bodies = st.bodies;
+  const n = bodies.length;
+
+  // Reset accelerations
+  for (let i = 0; i < n; i++) {
+    bodies[i].ax = 0; bodies[i].ay = 0;
+  }
+
+  // Compute pairwise forces
+  for (let i = 0; i < n; i++) {
+    for (let j = i+1; j < n; j++) {
+      const bi = bodies[i], bj = bodies[j];
+      const dx = bj.x - bi.x, dy = bj.y - bi.y;
+      const r2 = dx*dx + dy*dy;
+      const r = Math.sqrt(r2);
+      const rMin = (bi.radius + bj.radius) / st.scale; // minimum separation
+      const rClamped = Math.max(r, rMin * 0.5);
+      const r3 = rClamped * rClamped * rClamped;
+
+      const fx = st.G * bi.mass * bj.mass * dx / r3;
+      const fy = st.G * bi.mass * bj.mass * dy / r3;
+
+      bi.ax += fx / bi.mass;
+      bi.ay += fy / bi.mass;
+      bj.ax -= fx / bj.mass;
+      bj.ay -= fy / bj.mass;
+    }
+  }
+}
+
+function step() {
+  const bodies = st.bodies;
+  const n = bodies.length;
+  const dt = st.dt * st.simSpeed;
+
+  // Store old accelerations and do first half-step
+  const oldAx = new Float64Array(n), oldAy = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    oldAx[i] = bodies[i].ax;
+    oldAy[i] = bodies[i].ay;
+  }
+
+  // Position update: x(t+dt) = x(t) + v(t)*dt + 0.5*a(t)*dt²
+  for (let i = 0; i < n; i++) {
+    bodies[i].x += bodies[i].vx * dt + 0.5 * oldAx[i] * dt * dt;
+    bodies[i].y += bodies[i].vy * dt + 0.5 * oldAy[i] * dt * dt;
+  }
+
+  // Compute new accelerations
+  computeAccelerations();
+
+  // Velocity update: v(t+dt) = v(t) + 0.5*(a(t) + a(t+dt))*dt
+  for (let i = 0; i < n; i++) {
+    bodies[i].vx += 0.5 * (oldAx[i] + bodies[i].ax) * dt;
+    bodies[i].vy += 0.5 * (oldAy[i] + bodies[i].ay) * dt;
+  }
+
+  // Record trail
+  if (st.showTrail) {
+    for (let i = 0; i < n; i++) {
+      const b = bodies[i];
+      b.trail.push({ x: b.x, y: b.y });
+      if (b.trail.length > b.maxTrail) b.trail.shift();
+    }
+  }
+}
+
+// ===== Rendering =====
+function worldToScreen(wx, wy) {
+  return [(wx - st.ox) * st.scale + W/2, (wy - st.oy) * st.scale + H/2];
+}
+
+function drawStars() {
+  for (const s of st.stars) {
+    const [sx, sy] = worldToScreen(s.x, s.y);
+    if (sx < -10 || sx > W+10 || sy < -10 || sy > H+10) continue;
+    const b = s.b + Math.sin(st.time*0.003 + s.twinkle) * 0.15;
+    ctx.fillStyle = `rgba(255,255,255,${b.toFixed(2)})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, s.r, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawTrails() {
+  if (!st.showTrail) return;
+  for (const b of st.bodies) {
+    const t = b.trail;
+    if (t.length < 2) continue;
+    const [r,g,bCol] = b.color;
+
+    // Draw full trail as dashed line
+    ctx.strokeStyle = `rgba(${r},${g},${bCol},0.55)`;
+    ctx.lineWidth = Math.max(1.2, b.radius * st.scale * 0.45);
+    ctx.setLineDash([8, 5]);
+    ctx.beginPath();
+    const [x0, y0] = worldToScreen(t[0].x, t[0].y);
+    ctx.moveTo(x0, y0);
+    for (let i = 1; i < t.length; i++) {
+      const [xi, yi] = worldToScreen(t[i].x, t[i].y);
+      ctx.lineTo(xi, yi);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+// ===== Compute predicted orbit ellipse =====
+function computeOrbit(b, central) {
+  const dx = b.x - central.x, dy = b.y - central.y;
+  const r = Math.sqrt(dx*dx + dy*dy);
+  if (r < 0.01) return null;
+  const dvx = b.vx - central.vx, dvy = b.vy - central.vy;
+  const v2 = dvx*dvx + dvy*dvy;
+  const mu = st.G * (central.mass + b.mass);
+
+  // Specific orbital energy: must be negative for elliptical orbit
+  const eps = v2/2 - mu/r;
+  if (eps >= 0) return null; // unbound (parabolic/hyperbolic)
+
+  const a = -mu / (2 * eps);
+  const h = dx*dvy - dy*dvx; // angular momentum scalar
+  const rDotV = dx*dvx + dy*dvy;
+
+  // Eccentricity vector
+  const ex = (v2/mu - 1/r)*dx - rDotV*dvx/mu;
+  const ey = (v2/mu - 1/r)*dy - rDotV*dvy/mu;
+  const e = Math.sqrt(ex*ex + ey*ey);
+  if (e >= 0.99) return null;
+
+  const omega = Math.atan2(ey, ex); // argument of periapsis
+  const b_semi = a * Math.sqrt(Math.max(0, 1 - e*e));
+
+  return { a, b: b_semi, e, omega, cx: central.x, cy: central.y };
+}
+
+function findDominantBody(b) {
+  let best = null, bestForce = 0;
+  for (const other of st.bodies) {
+    if (other === b) continue;
+    const dx = other.x - b.x, dy = other.y - b.y;
+    const r2 = dx*dx + dy*dy;
+    if (r2 < 0.01) continue;
+    const force = st.G * b.mass * other.mass / r2;
+    if (force > bestForce) { bestForce = force; best = other; }
+  }
+  return best;
+}
+
+function drawPredictedOrbits() {
+  if (!st.showPredict) return;
+  for (const b of st.bodies) {
+    const dom = findDominantBody(b);
+    if (!dom) continue;
+    const orb = computeOrbit(b, dom);
+    if (!orb) continue;
+
+    const [r,g,bCol] = b.color;
+    ctx.strokeStyle = `rgba(${r},${g},${bCol},0.35)`;
+    ctx.lineWidth = Math.max(1, b.radius * st.scale * 0.35);
+    ctx.setLineDash([4, 6]);
+
+    ctx.beginPath();
+    const nPts = 360;
+    for (let i = 0; i <= nPts; i++) {
+      const nu = 2 * Math.PI * i / nPts;
+      const rr = orb.a * (1 - orb.e*orb.e) / (1 + orb.e * Math.cos(nu));
+      const wx = orb.cx + rr * Math.cos(nu + orb.omega);
+      const wy = orb.cy + rr * Math.sin(nu + orb.omega);
+      const [sx, sy] = worldToScreen(wx, wy);
+      if (i === 0) ctx.moveTo(sx, sy);
+      else ctx.lineTo(sx, sy);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawForceLines() {
+  if (!st.showForce) return;
+  const bodies = st.bodies;
+  const n = bodies.length;
+  for (let i = 0; i < n; i++) {
+    for (let j = i+1; j < n; j++) {
+      const bi = bodies[i], bj = bodies[j];
+      const dx = bj.x - bi.x, dy = bj.y - bi.y;
+      const r = Math.sqrt(dx*dx + dy*dy);
+      const force = st.G * bi.mass * bj.mass / (r*r);
+      const lw = Math.max(0.3, Math.min(3, force * 0.0005));
+      const [x1, y1] = worldToScreen(bi.x, bi.y);
+      const [x2, y2] = worldToScreen(bj.x, bj.y);
+      ctx.strokeStyle = `rgba(255,255,255,${(lw/3).toFixed(2)})`;
+      ctx.lineWidth = lw;
+      ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+function drawVelocityArrows() {
+  if (!st.showVel) return;
+  for (const b of st.bodies) {
+    const [sx, sy] = worldToScreen(b.x, b.y);
+    const speed = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+    if (speed < 0.01) continue;
+    const vScale = 15 * st.scale;
+    const vx = b.vx / speed, vy = b.vy / speed;
+    const len = Math.min(speed * vScale, 60);
+    const ex = sx + vx * len, ey = sy + vy * len;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+
+    // arrowhead
+    const hl = 8;
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - vx*hl + vy*hl*0.4, ey - vy*hl - vx*hl*0.4);
+    ctx.lineTo(ex - vx*hl - vy*hl*0.4, ey - vy*hl + vx*hl*0.4);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawBodies() {
+  const bodies = st.bodies;
+  for (let i = 0; i < bodies.length; i++) {
+    const b = bodies[i];
+    const [sx, sy] = worldToScreen(b.x, b.y);
+    const r = b.radius * st.scale;
+
+    // Glow
+    const glow = ctx.createRadialGradient(sx, sy, r*0.3, sx, sy, r*3);
+    const [cr,cg,cb] = b.color;
+    glow.addColorStop(0, `rgba(${cr},${cg},${cb},0.8)`);
+    glow.addColorStop(0.3, `rgba(${cr},${cg},${cb},0.3)`);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r*3, 0, Math.PI*2);
+    ctx.fill();
+
+    // Body
+    const bodyGrad = ctx.createRadialGradient(sx-r*0.2, sy-r*0.25, r*0.05, sx, sy, r);
+    bodyGrad.addColorStop(0, `rgb(${Math.min(255,cr+100)},${Math.min(255,cg+100)},${Math.min(255,cb+100)})`);
+    bodyGrad.addColorStop(0.7, `rgb(${cr},${cg},${cb})`);
+    bodyGrad.addColorStop(1, `rgb(${Math.max(0,cr-80)},${Math.max(0,cg-80)},${Math.max(0,cb-80)})`);
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.arc(sx, sy, Math.max(2, r), 0, Math.PI*2);
+    ctx.fill();
+
+    // Selection ring
+    if (i === st.selectedIdx) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.arc(sx, sy, r+6, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Label
+    if (st.showLabel) {
+      ctx.fillStyle = '#fff';
+      ctx.font = `${Math.max(10,Math.min(14,r*0.8))}px "Microsoft YaHei"`;
+      ctx.textAlign = 'center';
+      ctx.fillText(b.name, sx, sy - r - 8);
+    }
+  }
+}
+
+function drawCenterOfMass() {
+  const bodies = st.bodies;
+  let mx = 0, my = 0, mt = 0;
+  for (const b of bodies) { mx += b.mass * b.x; my += b.mass * b.y; mt += b.mass; }
+  if (mt === 0) return;
+  const [sx, sy] = worldToScreen(mx/mt, my/mt);
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 8, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(sx-12, sy); ctx.lineTo(sx+12, sy);
+  ctx.moveTo(sx, sy-12); ctx.lineTo(sx, sy+12);
+  ctx.stroke();
+}
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Deep space background
+  ctx.fillStyle = '#020210';
+  ctx.fillRect(0, 0, W, H);
+
+  drawStars();
+  drawForceLines();
+  drawPredictedOrbits();
+  drawTrails();
+  drawVelocityArrows();
+  drawCenterOfMass();
+  drawBodies();
+
+  // Scale bar
+  const barLen = 100 / st.scale;
+  if (barLen > 5 && barLen < W*0.8) {
+    const barX = W - 120, barY = H - 20;
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(barX, barY);
+    ctx.lineTo(barX+100, barY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(barX, barY-5);
+    ctx.lineTo(barX, barY+5);
+    ctx.moveTo(barX+100, barY-5);
+    ctx.lineTo(barX+100, barY+5);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '10px "Microsoft YaHei"';
+    ctx.textAlign = 'center';
+    ctx.fillText(barLen.toFixed(0)+' px', barX+50, barY-6);
+  }
+}
+
+// ===== Animation =====
+let lastT = 0, frameAcc = 0;
+
+function frame(ts) {
+  if (!lastT) lastT = ts;
+  let rdt = (ts - lastT) / 1000;
+  if (rdt <= 0) rdt = 0.016; else if (rdt > 0.1) rdt = 0.1;
+  lastT = ts;
+  st.time += rdt;
+
+  if (st.running) {
+    // Multiple physics steps per frame if needed
+    const targetDt = 0.016;
+    const physSteps = Math.max(1, Math.floor(rdt / targetDt));
+    const subDt = rdt / physSteps;
+    st.dt = subDt;
+    for (let s = 0; s < physSteps; s++) step();
+  }
+
+  render();
+  requestAnimationFrame(frame);
+}
+
+// ===== Data Display =====
+function updateBodyList() {
+  const el = document.getElementById('bodyList');
+  el.innerHTML = st.bodies.map((b,i) => {
+    const [r,g,bCol] = b.color;
+    const speed = Math.sqrt(b.vx*b.vx+b.vy*b.vy);
+    return `<div class="body-row" data-idx="${i}" style="${i===st.selectedIdx?'background:rgba(255,255,255,0.08)':''}">
+      <span class="body-dot" style="background:rgb(${r},${g},${bCol})"></span>
+      <span class="body-info"><span class="name">${b.name}</span><br><span class="data">m=${b.mass.toFixed(1)} v=${speed.toFixed(1)}</span></span>
+    </div>`;
+  }).join('');
+
+  // Click handlers
+  el.querySelectorAll('.body-row').forEach(row => {
+    row.addEventListener('click', function() {
+      st.selectedIdx = parseInt(this.dataset.idx);
+      updateSelectedInfo();
+      updateBodyList();
+    });
+  });
+}
+
+function updateSelectedInfo() {
+  const card = document.getElementById('cardSelected');
+  if (st.selectedIdx < 0 || st.selectedIdx >= st.bodies.length) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  const b = st.bodies[st.selectedIdx];
+  const [r,g,bCol] = b.color;
+  document.getElementById('selectedName').innerHTML = `<span class="body-dot" style="display:inline-block;background:rgb(${r},${g},${bCol});width:12px;height:12px;vertical-align:middle;margin-right:6px"></span>${b.name}`;
+  document.getElementById('dataMass').textContent = b.mass.toFixed(2);
+  const speed = Math.sqrt(b.vx*b.vx+b.vy*b.vy);
+  document.getElementById('dataSpeed').textContent = speed.toFixed(2);
+  // Find distance from dominant gravitational body
+  let maxForce = 0, domDist = 0;
+  for (const other of st.bodies) {
+    if (other === b) continue;
+    const dx = other.x - b.x, dy = other.y - b.y;
+    const r2 = dx*dx+dy*dy;
+    const force = st.G * b.mass * other.mass / r2;
+    if (force > maxForce) {
+      maxForce = force;
+      domDist = Math.sqrt(r2);
+    }
+  }
+  document.getElementById('dataDist').textContent = domDist.toFixed(1);
+  document.getElementById('dataKE').textContent = (0.5*b.mass*speed*speed).toFixed(2);
+}
+
+// ===== Mouse interaction =====
+let dragging = false, dragX = 0, dragY = 0, dragOX = 0, dragOY = 0;
+
+canvas.addEventListener('mousedown', e => {
+  if (e.button === 0) {
+    // Check if clicked on a body
+    const mx = e.offsetX, my = e.offsetY;
+    let clicked = -1;
+    for (let i = st.bodies.length-1; i >= 0; i--) {
+      const b = st.bodies[i];
+      const [sx, sy] = worldToScreen(b.x, b.y);
+      const dist = Math.sqrt((mx-sx)*(mx-sx)+(my-sy)*(my-sy));
+      if (dist < b.radius*st.scale+10) {
+        clicked = i; break;
+      }
+    }
+    if (clicked >= 0) {
+      st.selectedIdx = clicked;
+      updateSelectedInfo();
+      updateBodyList();
+    }
+    dragging = true;
+    dragX = e.clientX; dragY = e.clientY;
+    dragOX = st.ox; dragOY = st.oy;
+    wrap.style.cursor = 'grabbing';
+  }
+});
+
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  st.ox = dragOX - (e.clientX - dragX) / st.scale;
+  st.oy = dragOY - (e.clientY - dragY) / st.scale;
+});
+
+window.addEventListener('mouseup', () => {
+  dragging = false;
+  wrap.style.cursor = 'grab';
+});
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const wx = (mx - W/2) / st.scale + st.ox;
+  const wy = (my - H/2) / st.scale + st.oy;
+  const zf = e.deltaY < 0 ? 1.1 : 0.9;
+  st.scale = Math.max(0.1, Math.min(20, st.scale * zf));
+  st.ox = wx - (mx - W/2) / st.scale;
+  st.oy = wy - (my - H/2) / st.scale;
+}, { passive: false });
+
+// Keyboard
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    st.running = !st.running;
+    document.getElementById('btnPlay').textContent = st.running ? '⏸ 暂停' : '▶ 开始';
+  }
+});
+
+// ===== UI Events =====
+document.getElementById('btnPlay').addEventListener('click', function() {
+  st.running = !st.running;
+  this.textContent = st.running ? '⏸ 暂停' : '▶ 开始';
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  const activePreset = document.querySelector('.preset-btn.active');
+  if (activePreset) applyPreset(activePreset.dataset.preset);
+});
+
+document.getElementById('btnClear').addEventListener('click', () => {
+  for (const b of st.bodies) b.trail = [];
+});
+
+document.querySelectorAll('[data-speed]').forEach(b => {
+  b.addEventListener('click', function() {
+    document.querySelectorAll('[data-speed]').forEach(x => x.classList.remove('active'));
+    this.classList.add('active');
+    st.simSpeed = parseFloat(this.dataset.speed);
+  });
+});
+
+document.getElementById('sliderG').addEventListener('input', function() {
+  st.G = parseInt(this.value);
+  document.getElementById('valG').textContent = st.G;
+});
+
+document.getElementById('sliderDt').addEventListener('input', function() {
+  st.dt = parseInt(this.value) / 1000;
+  document.getElementById('valDt').textContent = parseInt(this.value);
+});
+
+document.querySelectorAll('.preset-btn').forEach(b => {
+  b.addEventListener('click', function() {
+    document.querySelectorAll('.preset-btn').forEach(x => x.classList.remove('active'));
+    this.classList.add('active');
+    applyPreset(this.dataset.preset);
+    updateSelectedInfo();
+    updateBodyList();
+  });
+});
+
+document.getElementById('toggleTrail').addEventListener('click', function() {
+  st.showTrail = !st.showTrail; this.classList.toggle('on', st.showTrail);
+  if (!st.showTrail) for (const b of st.bodies) b.trail = [];
+});
+document.getElementById('toggleVel').addEventListener('click', function() {
+  st.showVel = !st.showVel; this.classList.toggle('on', st.showVel);
+});
+document.getElementById('toggleForce').addEventListener('click', function() {
+  st.showForce = !st.showForce; this.classList.toggle('on', st.showForce);
+});
+document.getElementById('toggleLabel').addEventListener('click', function() {
+  st.showLabel = !st.showLabel; this.classList.toggle('on', st.showLabel);
+});
+document.getElementById('togglePredict').addEventListener('click', function() {
+  st.showPredict = !st.showPredict; this.classList.toggle('on', st.showPredict);
+});
+
+// ===== Init =====
+applyPreset('solar');
+updateBodyList();
+document.getElementById('btnPlay').textContent = '⏸ 暂停';
+requestAnimationFrame(frame);
+lastT = 0;
+</script>
+</body>
+</html>

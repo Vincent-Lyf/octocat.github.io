@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>速度选择器模拟 - 物理交互动画</title>
+    <style>
+        :root {
+            --bg: #1a1d23;
+            --panel-bg: #21252b;
+            --text: #e0e0e0;
+            --text-secondary: #a0a0b0;
+            --accent: #4da6ff;
+            --accent-glow: #7cc0ff;
+            --gold: #f0c040;
+            --gold-glow: #f8d870;
+            --slider-track: #3a3d44;
+            --slider-fill: #4da6ff;
+            --border: #333840;
+            --danger: #e05560;
+            --success: #4ec980;
+            --warning: #e8a840;
+            --plate-color: #5a5d68;
+            --plate-top: #c08070;
+            --plate-bottom: #7090c0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #15171d 0%, #1c1f27 40%, #1a1d24 100%);
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .main-container {
+            background: var(--bg);
+            border-radius: 20px;
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 0 1px var(--border),
+                0 0 120px rgba(77, 166, 255, 0.06);
+            padding: 28px 32px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 1080px;
+            width: 100%;
+            transition: box-shadow 0.4s ease;
+        }
+        .main-container:hover {
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 0 1px var(--border),
+                0 0 160px rgba(77, 166, 255, 0.1);
+        }
+
+        .main-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            background: linear-gradient(135deg, #e8e8f0 0%, #c0d0f0 30%, #a0c8f8 60%, #d0d8e8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: none;
+            margin: 0;
+            line-height: 1.3;
+        }
+        .main-title .icon {
+            display: inline-block;
+            margin-right: 6px;
+            font-size: 1.1em;
+            vertical-align: -0.05em;
+        }
+
+        .content-wrapper {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 950px) {
+            .content-wrapper {
+                flex-direction: column;
+                align-items: center;
+            }
+            .canvas-container {
+                width: 100% !important;
+            }
+            .canvas-container canvas {
+                width: 100% !important;
+                height: auto !important;
+            }
+        }
+
+        .control-panel {
+            background: var(--panel-bg);
+            border-radius: 16px;
+            padding: 22px 20px 18px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            min-width: 250px;
+            flex: 0 0 265px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        .control-panel .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #c8d0e0;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            margin: 0;
+        }
+
+        .param-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .param-group label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .param-group label .param-name {
+            font-weight: 600;
+            color: #c8c8d8;
+        }
+        .param-group label .param-value {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--accent-glow);
+            background: rgba(77, 166, 255, 0.1);
+            padding: 2px 10px;
+            border-radius: 10px;
+            min-width: 55px;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--slider-track);
+            outline: none;
+            cursor: pointer;
+            margin: 4px 0;
+            transition: background 0.2s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #e8e8f0;
+            border: 3px solid var(--accent);
+            cursor: pointer;
+            box-shadow: 0 0 14px rgba(77, 166, 255, 0.5), 0 4px 10px rgba(0, 0, 0, 0.35);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            box-shadow: 0 0 22px rgba(77, 166, 255, 0.7), 0 4px 14px rgba(0, 0, 0, 0.45);
+            border-color: #80c0ff;
+        }
+        input[type="range"]::-webkit-slider-thumb:active {
+            transform: scale(1.08);
+            box-shadow: 0 0 28px rgba(120, 190, 255, 0.85), 0 6px 16px rgba(0, 0, 0, 0.5);
+        }
+
+        .result-display {
+            background: rgba(240, 192, 64, 0.08);
+            border: 2px solid rgba(240, 192, 64, 0.35);
+            border-radius: 12px;
+            padding: 14px 16px;
+            text-align: center;
+            transition: all 0.35s ease;
+        }
+        .result-display .result-label {
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: #c8b878;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .result-display .result-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gold);
+            letter-spacing: 0.03em;
+            text-shadow: 0 0 18px rgba(240, 192, 64, 0.4);
+        }
+        .result-display .result-unit {
+            font-size: 0.75rem;
+            color: #b0a070;
+            font-weight: 400;
+        }
+
+        .btn-reset {
+            width: 100%;
+            padding: 10px 0;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--panel-bg);
+            color: #d0d0e0;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.04em;
+            transition: all 0.25s ease;
+            font-family: inherit;
+        }
+        .btn-reset:hover {
+            background: #2a2e38;
+            border-color: #5a6080;
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+        .btn-reset:active {
+            transform: scale(0.97);
+            transition: transform 0.1s ease;
+        }
+
+        .canvas-container {
+            flex: 1 1 auto;
+            background: #0d0f14;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        canvas {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .legend-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            padding: 4px 0;
+            font-size: 0.75rem;
+            color: #9090a0;
+        }
+        .legend-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 4px;
+            vertical-align: -1px;
+            box-shadow: 0 0 6px currentColor;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        .legend-matched {
+            color: #f0c840;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <h1 class="main-title">
+            <span class="icon">⚡</span>速度选择器模拟
+            <span style="font-size:0.55em;font-weight:400;color:#8890a8;margin-left:8px;">Velocity Selector</span>
+        </h1>
+
+        <div class="content-wrapper">
+            <!-- 控制面板 -->
+            <div class="control-panel" id="controlPanel">
+                <div class="section-title">🔧 参数设置</div>
+
+                <div class="param-group">
+                    <label>
+                        <span class="param-name">电场强度 <em style="font-style:normal;font-size:0.8em;color:#888;">E</em></span>
+                        <span class="param-value" id="eValue">6.00</span>
+                    </label>
+                    <input type="range" id="eSlider" min="1" max="15" step="0.1" value="6">
+                </div>
+
+                <div class="param-group">
+                    <label>
+                        <span class="param-name">磁感应强度 <em style="font-style:normal;font-size:0.8em;color:#888;">B</em></span>
+                        <span class="param-value" id="bValue">0.030</span>
+                    </label>
+                    <input type="range" id="bSlider" min="0.005" max="0.08" step="0.001" value="0.03">
+                </div>
+
+                <div class="result-display" id="resultDisplay">
+                    <div class="result-label">✅ 目标速度 &nbsp;v = E / B</div>
+                    <div class="result-value" id="targetSpeed">200.0</div>
+                    <div class="result-unit">px/s（任意单位）</div>
+                </div>
+
+                <button class="btn-reset" id="btnReset" title="重置所有粒子，重新开始模拟">🔄 重置模拟</button>
+
+                <div style="font-size:0.7rem;color:#606880;text-align:center;line-height:1.5;">
+                    拖动滑块实时调整参数<br>粒子将自动重置
+                </div>
+            </div>
+
+            <!-- 画布容器 -->
+            <div class="canvas-container" id="canvasContainer">
+                <canvas id="mainCanvas"></canvas>
+            </div>
+        </div>
+
+        <!-- 图例 -->
+        <div class="legend-row">
+            <span class="legend-item"><span class="legend-dot" style="background:#ff6060;box-shadow:0 0 8px #ff6060;"></span>低速粒子 v&lt;E/B</span>
+            <span class="legend-item legend-matched"><span class="legend-dot" style="background:#f0c840;box-shadow:0 0 12px #f0c840;"></span>匹配粒子 v=E/B</span>
+            <span class="legend-item"><span class="legend-dot" style="background:#60a0ff;box-shadow:0 0 8px #60a0ff;"></span>高速粒子 v&gt;E/B</span>
+            <span class="legend-item" style="color:#888;">× 磁场向纸面内</span>
+            <span class="legend-item" style="color:#c8a060;">↓ 电场方向</span>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ==================== DOM元素 ====================
+            const canvas = document.getElementById('mainCanvas');
+            const ctx = canvas.getContext('2d');
+            const canvasContainer = document.getElementById('canvasContainer');
+            const eSlider = document.getElementById('eSlider');
+            const bSlider = document.getElementById('bSlider');
+            const eValueDisplay = document.getElementById('eValue');
+            const bValueDisplay = document.getElementById('bValue');
+            const targetSpeedDisplay = document.getElementById('targetSpeed');
+            const resultDisplay = document.getElementById('resultDisplay');
+            const btnReset = document.getElementById('btnReset');
+
+            // ==================== 画布尺寸设置 ====================
+            const CANVAS_WIDTH = 780;
+            const CANVAS_HEIGHT = 470;
+            canvas.width = CANVAS_WIDTH;
+            canvas.height = CANVAS_HEIGHT;
+            canvas.style.width = Math.min(CANVAS_WIDTH, 780) + 'px';
+            canvas.style.height = Math.min(CANVAS_HEIGHT, 470) + 'px';
+
+            // ==================== 速度选择器几何参数 ====================
+            const SELECTOR_ENTRY_X = 105; // 入口x坐标
+            const SELECTOR_EXIT_X = 660; // 出口x坐标
+            const PLATE_TOP_Y = 138; // 上极板y坐标
+            const PLATE_BOTTOM_Y = 342; // 下极板y坐标
+            const PLATE_THICKNESS = 18; // 极板厚度
+            const PLATE_HALF_GAP = (PLATE_BOTTOM_Y - PLATE_TOP_Y) / 2; // 半间距
+            const SELECTOR_MID_Y = (PLATE_TOP_Y + PLATE_BOTTOM_Y) / 2; // 极板中间y
+            const PARTICLE_START_X = 50; // 粒子初始x（入口之前）
+
+            // ==================== 物理参数 ====================
+            let electricFieldE = parseFloat(eSlider.value); // 电场强度
+            let magneticFieldB = parseFloat(bSlider.value); // 磁感应强度
+            const CHARGE_Q = 1; // 粒子电荷
+            const MASS_M = 1; // 粒子质量
+
+            // 目标速度 v_select = E / B
+            function getTargetSpeed() {
+                return electricFieldE / magneticFieldB;
+            }
+
+            // ==================== 粒子预设速度 ====================
+            function getParticleSpeeds() {
+                const vTarget = getTargetSpeed();
+                // 围绕目标速度生成9个速度，覆盖范围更广
+                const speeds = [];
+                const factors = [0.28, 0.45, 0.62, 0.78, 1.0, 1.22, 1.48, 1.75, 2.1];
+                for (const f of factors) {
+                    speeds.push(Math.round(vTarget * f));
+                }
+                // 确保速度严格递增且无重复
+                const unique = [...new Set(speeds)].sort((a, b) => a - b);
+                // 如果数量不足9个，补充
+                while (unique.length < 9) {
+                    const lastSpeed = unique[unique.length - 1] || vTarget;
+                    unique.push(Math.round(lastSpeed * 1.15));
+                }
+                return unique.slice(0, 9);
+            }
+
+            // ==================== 粒子颜色映射 ====================
+            function getParticleColor(speed, vTarget) {
+                const ratio = speed / vTarget;
+                // 越接近1.0越偏金色/绿色，偏离越大越偏红(低速)或蓝(高速)
+                if (Math.abs(ratio - 1.0) < 0.03) {
+                    // 匹配粒子 - 金色
+                    return { r: 240, g: 195, b: 50, alpha: 1.0, glow: true, label: 'match' };
+                }
+                const deviation = ratio - 1.0;
+                // 使用HSL思想映射到RGB
+                let hue;
+                if (deviation < 0) {
+                    // 低速：红色到橙色 (0-30度)
+                    hue = 15 + deviation * 60; // deviation为负，所以hue在0-15之间
+                    hue = Math.max(0, 15 + deviation * 80);
+                } else {
+                    // 高速：青色到蓝色 (180-220度)
+                    hue = 195 + deviation * 40;
+                    hue = Math.min(225, 195 + deviation * 50);
+                }
+                // 转换HSL到RGB（简化）
+                const s = 0.85;
+                const l = 0.5;
+                const c = (1 - Math.abs(2 * l - 1)) * s;
+                const x = c * (1 - Math.abs(((hue / 60) % 2) - 1));
+                const m = l - c / 2;
+                let r1, g1, b1;
+                if (hue < 60) { r1 = c;
+                    g1 = x;
+                    b1 = 0; } else if (hue < 120) { r1 = x;
+                    g1 = c;
+                    b1 = 0; } else if (hue < 180) { r1 = 0;
+                    g1 = c;
+                    b1 = x; } else if (hue < 240) { r1 = 0;
+                    g1 = x;
+                    b1 = c; } else { r1 = x;
+                    g1 = 0;
+                    b1 = c; }
+                const r = Math.round((r1 + m) * 255);
+                const g = Math.round((g1 + m) * 255);
+                const b = Math.round((b1 + m) * 255);
+                return { r, g, b, alpha: 0.85, glow: false, label: deviation < 0 ? 'slow' : 'fast' };
+            }
+
+            // ==================== 粒子类 ====================
+            class Particle {
+                constructor(speed, vTarget, index) {
+                    this.initialSpeed = speed;
+                    this.vTarget = vTarget;
+                    this.index = index;
+                    this.reset();
+                }
+
+                reset() {
+                    this.x = PARTICLE_START_X;
+                    this.y = SELECTOR_MID_Y;
+                    this.vx = this.initialSpeed;
+                    this.vy = 0;
+                    this.active = true;
+                    this.passed = false;
+                    this.hitPlate = false;
+                    this.hitWhichPlate = null; // 'top' | 'bottom' | null
+                    this.trail = [{ x: this.x, y: this.y }];
+                    this.finished = false;
+                    this.color = getParticleColor(this.initialSpeed, this.vTarget);
+                }
+
+                update(dt, E, B) {
+                    if (!this.active || this.finished) return;
+
+                    // 检查是否在速度选择器区域内
+                    const inSelector = (
+                        this.x >= SELECTOR_ENTRY_X &&
+                        this.x <= SELECTOR_EXIT_X &&
+                        this.y > PLATE_TOP_Y &&
+                        this.y < PLATE_BOTTOM_Y
+                    );
+
+                    if (inSelector) {
+                        // 在速度选择器内，受电场力和磁场力
+                        // ax = q*B*vy / m, ay = (q*E - q*B*vx) / m
+                        const ax = CHARGE_Q * B * this.vy / MASS_M;
+                        const ay = (CHARGE_Q * E - CHARGE_Q * B * this.vx) / MASS_M;
+
+                        // 半隐式欧拉积分
+                        this.vx += ax * dt;
+                        this.vy += ay * dt;
+                        this.x += this.vx * dt;
+                        this.y += this.vy * dt;
+
+                        // 检查是否撞到极板
+                        if (this.y <= PLATE_TOP_Y) {
+                            this.y = PLATE_TOP_Y;
+                            this.active = false;
+                            this.hitPlate = true;
+                            this.hitWhichPlate = 'top';
+                            this.finished = true;
+                        } else if (this.y >= PLATE_BOTTOM_Y) {
+                            this.y = PLATE_BOTTOM_Y;
+                            this.active = false;
+                            this.hitPlate = true;
+                            this.hitWhichPlate = 'bottom';
+                            this.finished = true;
+                        }
+                    } else if (this.x > SELECTOR_EXIT_X && !this.passed && !this.hitPlate) {
+                        // 粒子通过出口
+                        this.passed = true;
+                        this.active = true; // 继续飞行但不受力
+                        this.vx = this.vx;
+                        this.vy = this.vy;
+                        this.x += this.vx * dt;
+                        this.y += this.vy * dt;
+                    } else if (this.x < SELECTOR_ENTRY_X) {
+                        // 入口之前，不受力，直线飞行
+                        this.x += this.vx * dt;
+                        this.y += this.vy * dt;
+                    } else if (this.passed) {
+                        // 出口之后，不受力，直线飞行
+                        this.x += this.vx * dt;
+                        this.y += this.vy * dt;
+                    } else if (this.x > SELECTOR_EXIT_X && this.y > PLATE_TOP_Y && this.y < PLATE_BOTTOM_Y) {
+                        // 刚好通过出口
+                        this.passed = true;
+                        this.x += this.vx * dt;
+                        this.y += this.vy * dt;
+                    } else {
+                        // 其他情况（如刚进入选择器区域）
+                        this.x += this.vx * dt;
+                        this.y += this.vy * dt;
+                    }
+
+                    // 检查粒子是否飞出画布
+                    if (this.x > CANVAS_WIDTH + 40 || this.x < -40 ||
+                        this.y > CANVAS_HEIGHT + 40 || this.y < -40) {
+                        this.finished = true;
+                        this.active = false;
+                    }
+
+                    // 如果粒子已经通过出口并飞出足够远，标记完成
+                    if (this.passed && this.x > CANVAS_WIDTH + 20) {
+                        this.finished = true;
+                        this.active = false;
+                    }
+
+                    // 记录轨迹
+                    if (this.trail.length === 0 ||
+                        Math.hypot(this.x - this.trail[this.trail.length - 1].x,
+                            this.y - this.trail[this.trail.length - 1].y) > 1.5) {
+                        this.trail.push({ x: this.x, y: this.y });
+                    }
+                    // 限制轨迹点数量
+                    if (this.trail.length > 3000) {
+                        this.trail = this.trail.slice(-2000);
+                    }
+                }
+
+                draw(ctx) {
+                    if (this.trail.length < 2) return;
+
+                    const { r, g, b, alpha, glow } = this.color;
+
+                    // 绘制轨迹
+                    ctx.beginPath();
+                    ctx.moveTo(this.trail[0].x, this.trail[0].y);
+                    for (let i = 1; i < this.trail.length; i++) {
+                        ctx.lineTo(this.trail[i].x, this.trail[i].y);
+                    }
+                    const lineAlpha = this.finished && this.hitPlate ? 0.35 : (glow ? 0.95 : 0.7);
+                    ctx.strokeStyle = `rgba(${r},${g},${b},${lineAlpha})`;
+                    ctx.lineWidth = glow ? 3.5 : 2.2;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    if (glow) {
+                        ctx.shadowColor = `rgba(${r},${g},${b},0.7)`;
+                        ctx.shadowBlur = 8;
+                    } else {
+                        ctx.shadowColor = 'transparent';
+                        ctx.shadowBlur = 0;
+                    }
+                    ctx.stroke();
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+
+                    // 绘制粒子当前位置
+                    if (this.active || (!this.finished)) {
+                        const px = this.trail[this.trail.length - 1].x;
+                        const py = this.trail[this.trail.length - 1].y;
+                        const radius = glow ? 7 : 5;
+
+                        // 光晕
+                        const grad = ctx.createRadialGradient(px, py, radius * 0.3, px, py, radius * 2.2);
+                        grad.addColorStop(0, `rgba(${r},${g},${b},1)`);
+                        grad.addColorStop(0.4, `rgba(${r},${g},${b},0.7)`);
+                        grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.arc(px, py, radius * 2.2, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // 核心
+                        ctx.fillStyle = `rgba(255,255,255,0.9)`;
+                        ctx.beginPath();
+                        ctx.arc(px, py, radius * 0.55, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.fillStyle = `rgba(${r},${g},${b},1)`;
+                        ctx.beginPath();
+                        ctx.arc(px, py, radius, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+
+                    // 撞板标记
+                    if (this.hitPlate && this.trail.length > 0) {
+                        const lastPt = this.trail[this.trail.length - 1];
+                        ctx.strokeStyle = `rgba(255,100,80,0.8)`;
+                        ctx.lineWidth = 2;
+                        const crossSize = 8;
+                        ctx.beginPath();
+                        ctx.moveTo(lastPt.x - crossSize, lastPt.y - crossSize);
+                        ctx.lineTo(lastPt.x + crossSize, lastPt.y + crossSize);
+                        ctx.moveTo(lastPt.x + crossSize, lastPt.y - crossSize);
+                        ctx.lineTo(lastPt.x - crossSize, lastPt.y + crossSize);
+                        ctx.stroke();
+                    }
+
+                    // 通过标记
+                    if (this.passed && this.trail.length > 0 && this.x > SELECTOR_EXIT_X) {
+                        const markX = SELECTOR_EXIT_X + 18;
+                        const markY = this.trail.length > 10 ?
+                            this.trail[Math.min(this.trail.length - 1,
+                                Math.floor(this.trail.length * 0.7)
+                            )].y :
+                            SELECTOR_MID_Y;
+                        const idx = this.trail.findIndex(p => p.x >= SELECTOR_EXIT_X);
+                        const my = idx >= 0 ? this.trail[idx].y : markY;
+                        ctx.fillStyle = 'rgba(120,220,150,0.9)';
+                        ctx.font = 'bold 16px "Segoe UI","PingFang SC",sans-serif';
+                        ctx.fillText('✓', markX, Math.max(PLATE_TOP_Y + 20, Math.min(PLATE_BOTTOM_Y -
+                            10, my)));
+                    }
+                }
+            }
+
+            // ==================== 全局状态 ====================
+            let particles = [];
+            let animationId = null;
+            let lastTime = null;
+            let allFinishedNotified = false;
+            const SIM_DT = 0.0012; // 模拟时间步长（秒）
+            const MAX_SUBSTEPS_PER_FRAME = 14;
+
+            function createParticles() {
+                const vTarget = getTargetSpeed();
+                const speeds = getParticleSpeeds();
+                particles = speeds.map((speed, i) => new Particle(speed, vTarget, i));
+                allFinishedNotified = false;
+            }
+
+            function resetAllParticles() {
+                const vTarget = getTargetSpeed();
+                const speeds = getParticleSpeeds();
+                // 更新或创建粒子
+                if (particles.length === speeds.length) {
+                    for (let i = 0; i < particles.length; i++) {
+                        particles[i].initialSpeed = speeds[i];
+                        particles[i].vTarget = vTarget;
+                        particles[i].reset();
+                        particles[i].color = getParticleColor(speeds[i], vTarget);
+                    }
+                } else {
+                    particles = speeds.map((s, i) => new Particle(s, vTarget, i));
+                }
+                allFinishedNotified = false;
+            }
+
+            // ==================== 绘制静态元素 ====================
+            function drawStaticElements(ctx) {
+                // 背景网格
+                ctx.strokeStyle = 'rgba(40,44,54,0.5)';
+                ctx.lineWidth = 0.5;
+                const gridSpacing = 30;
+                for (let x = gridSpacing; x < CANVAS_WIDTH; x += gridSpacing) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, CANVAS_HEIGHT);
+                    ctx.stroke();
+                }
+                for (let y = gridSpacing; y < CANVAS_HEIGHT; y += gridSpacing) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(CANVAS_WIDTH, y);
+                    ctx.stroke();
+                }
+
+                // 速度选择器背景区域（半透明高亮）
+                const bgGrad = ctx.createLinearGradient(0, PLATE_TOP_Y, 0, PLATE_BOTTOM_Y);
+                bgGrad.addColorStop(0, 'rgba(30,35,50,0.55)');
+                bgGrad.addColorStop(0.5, 'rgba(40,48,60,0.7)');
+                bgGrad.addColorStop(1, 'rgba(30,35,50,0.55)');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(SELECTOR_ENTRY_X, PLATE_TOP_Y, SELECTOR_EXIT_X - SELECTOR_ENTRY_X, PLATE_BOTTOM_Y -
+                    PLATE_TOP_Y);
+
+                // 上极板
+                const plateGradTop = ctx.createLinearGradient(0, PLATE_TOP_Y - PLATE_THICKNESS, 0, PLATE_TOP_Y);
+                plateGradTop.addColorStop(0, '#8a7a6a');
+                plateGradTop.addColorStop(0.3, '#c8b090');
+                plateGradTop.addColorStop(0.5, '#e0c8a8');
+                plateGradTop.addColorStop(0.7, '#b89878');
+                plateGradTop.addColorStop(1, '#6a5a4a');
+                ctx.fillStyle = plateGradTop;
+                roundRect(ctx, SELECTOR_ENTRY_X - 8, PLATE_TOP_Y - PLATE_THICKNESS,
+                    SELECTOR_EXIT_X - SELECTOR_ENTRY_X + 16, PLATE_THICKNESS, 6);
+                ctx.fill();
+                // 上极板边框
+                ctx.strokeStyle = 'rgba(200,160,120,0.6)';
+                ctx.lineWidth = 1.5;
+                roundRect(ctx, SELECTOR_ENTRY_X - 8, PLATE_TOP_Y - PLATE_THICKNESS,
+                    SELECTOR_EXIT_X - SELECTOR_ENTRY_X + 16, PLATE_THICKNESS, 6);
+                ctx.stroke();
+
+                // 上极板 + 标记
+                ctx.fillStyle = '#f0d8c0';
+                ctx.font = 'bold 14px "Segoe UI","PingFang SC",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('+ 正极板', (SELECTOR_ENTRY_X + SELECTOR_EXIT_X) / 2, PLATE_TOP_Y - 3);
+
+                // 下极板
+                const plateGradBottom = ctx.createLinearGradient(0, PLATE_BOTTOM_Y, 0, PLATE_BOTTOM_Y + PLATE_THICKNESS);
+                plateGradBottom.addColorStop(0, '#5a6a8a');
+                plateGradBottom.addColorStop(0.3, '#7a90b8');
+                plateGradBottom.addColorStop(0.5, '#90a8d0');
+                plateGradBottom.addColorStop(0.7, '#7088a8');
+                plateGradBottom.addColorStop(1, '#4a5a70');
+                ctx.fillStyle = plateGradBottom;
+                roundRect(ctx, SELECTOR_ENTRY_X - 8, PLATE_BOTTOM_Y,
+                    SELECTOR_EXIT_X - SELECTOR_ENTRY_X + 16, PLATE_THICKNESS, 6);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(130,160,200,0.6)';
+                ctx.lineWidth = 1.5;
+                roundRect(ctx, SELECTOR_ENTRY_X - 8, PLATE_BOTTOM_Y,
+                    SELECTOR_EXIT_X - SELECTOR_ENTRY_X + 16, PLATE_THICKNESS, 6);
+                ctx.stroke();
+
+                // 下极板 - 标记
+                ctx.fillStyle = '#c0d0f0';
+                ctx.fillText('− 负极板', (SELECTOR_ENTRY_X + SELECTOR_EXIT_X) / 2, PLATE_BOTTOM_Y + PLATE_THICKNESS + 4);
+
+                // 电场箭头（从正极板指向负极板，向下）
+                const arrowSpacing = 55;
+                const arrowStartX = SELECTOR_ENTRY_X + 30;
+                const arrowEndX = SELECTOR_EXIT_X - 10;
+                ctx.strokeStyle = 'rgba(220,180,100,0.55)';
+                ctx.fillStyle = 'rgba(220,180,100,0.6)';
+                ctx.lineWidth = 1.8;
+                for (let ax = arrowStartX; ax < arrowEndX; ax += arrowSpacing) {
+                    const arrowTop = PLATE_TOP_Y + 22;
+                    const arrowBottom = PLATE_BOTTOM_Y - 22;
+                    // 线
+                    ctx.beginPath();
+                    ctx.setLineDash([4, 6]);
+                    ctx.moveTo(ax, arrowTop);
+                    ctx.lineTo(ax, arrowBottom - 8);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    // 箭头
+                    ctx.beginPath();
+                    ctx.moveTo(ax - 6, arrowBottom - 14);
+                    ctx.lineTo(ax, arrowBottom - 2);
+                    ctx.lineTo(ax + 6, arrowBottom - 14);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                // 磁场符号 ×（散布在区域内）
+                const crossSpacingX = 50;
+                const crossSpacingY = 40;
+                ctx.fillStyle = 'rgba(140,180,220,0.5)';
+                ctx.font = '15px "Segoe UI","PingFang SC",serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                for (let cx = SELECTOR_ENTRY_X + 25; cx < SELECTOR_EXIT_X - 15; cx += crossSpacingX) {
+                    for (let cy = PLATE_TOP_Y + 28; cy < PLATE_BOTTOM_Y - 15; cy += crossSpacingY) {
+                        ctx.fillText('×', cx, cy);
+                    }
+                }
+                ctx.textBaseline = 'alphabetic';
+
+                // 入口标记
+                ctx.fillStyle = 'rgba(180,200,220,0.7)';
+                ctx.font = '12px "Segoe UI","PingFang SC",sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText('入口 →', SELECTOR_ENTRY_X - 8, SELECTOR_MID_Y);
+
+                // 出口标记
+                ctx.textAlign = 'left';
+                ctx.fillText('→ 出口', SELECTOR_EXIT_X + 8, SELECTOR_MID_Y);
+
+                // 区域标签
+                ctx.fillStyle = 'rgba(180,190,210,0.6)';
+                ctx.font = 'italic 13px "Segoe UI","PingFang SC",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('速度选择器区域', (SELECTOR_ENTRY_X + SELECTOR_EXIT_X) / 2, PLATE_TOP_Y - PLATE_THICKNESS - 12);
+                ctx.fillText('(电场E↓ + 磁场B⊗)', (SELECTOR_ENTRY_X + SELECTOR_EXIT_X) / 2, PLATE_BOTTOM_Y + PLATE_THICKNESS +
+                    22);
+
+                // 图例说明文字
+                ctx.fillStyle = 'rgba(200,200,210,0.5)';
+                ctx.font = '11px "Segoe UI","PingFang SC",sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('B⊗ 垂直纸面向里', SELECTOR_ENTRY_X + 10, PLATE_TOP_Y - PLATE_THICKNESS - 12);
+                ctx.fillText('E↓ 电场向下', SELECTOR_EXIT_X - 140, PLATE_TOP_Y - PLATE_THICKNESS - 12);
+            }
+
+            function roundRect(ctx, x, y, w, h, r) {
+                ctx.beginPath();
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.closePath();
+            }
+
+            // ==================== 绘制帧 ====================
+            function drawFrame() {
+                ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+                // 背景
+                const bgGrad = ctx.createRadialGradient(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 50,
+                    CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 600);
+                bgGrad.addColorStop(0, '#181b24');
+                bgGrad.addColorStop(1, '#0c0e13');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+                // 绘制静态元素
+                drawStaticElements(ctx);
+
+                // 绘制所有粒子
+                for (const p of particles) {
+                    p.draw(ctx);
+                }
+
+                // 检查是否全部完成
+                const allDone = particles.every(p => p.finished);
+                if (allDone && particles.length > 0 && !allFinishedNotified) {
+                    allFinishedNotified = true;
+                    // 在画布上显示提示
+                    const matchedParticle = particles.find(p =>
+                        p.passed && p.color.label === 'match'
+                    );
+                    if (matchedParticle) {
+                        drawCompletionOverlay(ctx, matchedParticle);
+                    }
+                }
+                if (allDone && particles.length > 0) {
+                    drawCompletionOverlay(ctx, particles.find(p => p.color.label === 'match') || particles.find(p => p
+                        .passed));
+                }
+
+                // 绘制图例（画布内右上角）
+                ctx.fillStyle = 'rgba(20,22,28,0.85)';
+                roundRect(ctx, CANVAS_WIDTH - 210, 10, 200, 78, 10);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(80,85,100,0.6)';
+                ctx.lineWidth = 1;
+                roundRect(ctx, CANVAS_WIDTH - 210, 10, 200, 78, 10);
+                ctx.stroke();
+                ctx.fillStyle = '#d0d0e0';
+                ctx.font = 'bold 11px "Segoe UI","PingFang SC",sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('粒子速度图例', CANVAS_WIDTH - 200, 32);
+                const vT = getTargetSpeed();
+                const legendItems = [
+                    { label: '低速 v<E/B', color: 'rgba(255,100,80,0.9)', y: 50 },
+                    { label: `匹配 v=E/B≈${vT.toFixed(0)}`, color: 'rgba(240,195,50,1)', y: 66 },
+                    { label: '高速 v>E/B', color: 'rgba(90,150,240,0.9)', y: 82 },
+                ];
+                for (const item of legendItems) {
+                    ctx.fillStyle = item.color;
+                    ctx.beginPath();
+                    ctx.arc(CANVAS_WIDTH - 192, item.y, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#c8c8d8';
+                    ctx.font = '10px "Segoe UI","PingFang SC",sans-serif';
+                    ctx.fillText(item.label, CANVAS_WIDTH - 182, item.y + 3);
+                }
+            }
+
+            function drawCompletionOverlay(ctx, matchedParticle) {
+                const ox = CANVAS_WIDTH / 2;
+                const oy = CANVAS_HEIGHT - 50;
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                roundRect(ctx, ox - 180, oy - 22, 360, 44, 12);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(240,195,50,0.7)';
+                ctx.lineWidth = 2;
+                roundRect(ctx, ox - 180, oy - 22, 360, 44, 12);
+                ctx.stroke();
+                ctx.fillStyle = '#f0d870';
+                ctx.font = 'bold 14px "Segoe UI","PingFang SC",sans-serif';
+                ctx.textAlign = 'center';
+                if (matchedParticle && matchedParticle.passed && matchedParticle.color.label === 'match') {
+                    ctx.fillText(
+                        `✅ 符合要求的粒子初速度: v₀ = ${matchedParticle.initialSpeed.toFixed(0)} px/s ≈ E/B = ${getTargetSpeed().toFixed(1)} px/s`,
+                        ox, oy + 5);
+                } else {
+                    ctx.fillText('🔄 所有粒子已完成运动 — 点击"重置模拟"重新开始', ox, oy + 5);
+                }
+                ctx.textAlign = 'start';
+            }
+
+            // ==================== 动画循环 ====================
+            function animate(timestamp) {
+                if (lastTime === null) {
+                    lastTime = timestamp;
+                }
+                let elapsed = (timestamp - lastTime) / 1000; // 秒
+                lastTime = timestamp;
+
+                // 限制最大步长，防止长时间暂停后跳帧
+                if (elapsed > 0.1) elapsed = 0.1;
+                if (elapsed <= 0) elapsed = 0.016;
+
+                // 计算子步骤
+                const substeps = Math.min(MAX_SUBSTEPS_PER_FRAME, Math.max(3, Math.ceil(elapsed / SIM_DT)));
+                const dt = elapsed / substeps;
+
+                // 更新所有粒子
+                const E = electricFieldE;
+                const B = magneticFieldB;
+                for (const p of particles) {
+                    if (!p.finished) {
+                        for (let s = 0; s < substeps; s++) {
+                            p.update(dt, E, B);
+                            if (p.finished) break;
+                        }
+                    }
+                }
+
+                // 绘制
+                drawFrame();
+
+                // 更新结果面板高亮
+                updateResultHighlight();
+
+                animationId = requestAnimationFrame(animate);
+            }
+
+            function updateResultHighlight() {
+                const allDone = particles.every(p => p.finished);
+                const matchedParticle = particles.find(p => p.color.label === 'match');
+                if (allDone && matchedParticle && matchedParticle.passed) {
+                    resultDisplay.style.borderColor = 'rgba(120,210,150,0.7)';
+                    resultDisplay.style.background = 'rgba(120,210,150,0.1)';
+                    resultDisplay.querySelector('.result-label').textContent = '✅ 筛选成功！符合要求的速度';
+                } else if (allDone && (!matchedParticle || !matchedParticle.passed)) {
+                    resultDisplay.style.borderColor = 'rgba(230,140,100,0.6)';
+                    resultDisplay.style.background = 'rgba(230,140,100,0.08)';
+                    resultDisplay.querySelector('.result-label').textContent = '⚠️ 无粒子精确匹配（调整E/B）';
+                } else {
+                    resultDisplay.style.borderColor = 'rgba(240,192,64,0.35)';
+                    resultDisplay.style.background = 'rgba(240,192,64,0.08)';
+                    resultDisplay.querySelector('.result-label').textContent = '🎯 目标速度 v = E / B';
+                }
+            }
+
+            // ==================== 事件处理 ====================
+            function onParameterChange(source) {
+                electricFieldE = parseFloat(eSlider.value);
+                magneticFieldB = parseFloat(bSlider.value);
+                eValueDisplay.textContent = electricFieldE.toFixed(2);
+                bValueDisplay.textContent = magneticFieldB.toFixed(3);
+                const vTarget = getTargetSpeed();
+                targetSpeedDisplay.textContent = vTarget.toFixed(1);
+                resetAllParticles();
+                lastTime = null;
+                allFinishedNotified = false;
+            }
+
+            eSlider.addEventListener('input', () => onParameterChange('e'));
+            bSlider.addEventListener('input', () => onParameterChange('b'));
+            eSlider.addEventListener('change', () => onParameterChange('e'));
+            bSlider.addEventListener('change', () => onParameterChange('b'));
+
+            btnReset.addEventListener('click', () => {
+                electricFieldE = parseFloat(eSlider.value);
+                magneticFieldB = parseFloat(bSlider.value);
+                eValueDisplay.textContent = electricFieldE.toFixed(2);
+                bValueDisplay.textContent = magneticFieldB.toFixed(3);
+                targetSpeedDisplay.textContent = getTargetSpeed().toFixed(1);
+                resetAllParticles();
+                lastTime = null;
+                allFinishedNotified = false;
+                resultDisplay.style.borderColor = 'rgba(240,192,64,0.35)';
+                resultDisplay.style.background = 'rgba(240,192,64,0.08)';
+                resultDisplay.querySelector('.result-label').textContent = '🎯 目标速度 v = E / B';
+            });
+
+            // 键盘R键重置
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'r' || e.key === 'R') {
+                    if (e.target.tagName !== 'INPUT' || e.target.type !== 'range') {
+                        btnReset.click();
+                    }
+                }
+            });
+
+            // ==================== 初始化 ====================
+            function init() {
+                electricFieldE = parseFloat(eSlider.value);
+                magneticFieldB = parseFloat(bSlider.value);
+                eValueDisplay.textContent = electricFieldE.toFixed(2);
+                bValueDisplay.textContent = magneticFieldB.toFixed(3);
+                targetSpeedDisplay.textContent = getTargetSpeed().toFixed(1);
+                createParticles();
+                lastTime = null;
+                allFinishedNotified = false;
+
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                }
+                animationId = requestAnimationFrame(animate);
+            }
+
+            // ==================== 响应式画布调整 ====================
+            function resizeCanvas() {
+                const containerWidth = canvasContainer.clientWidth;
+                if (containerWidth < CANVAS_WIDTH) {
+                    const scale = containerWidth / CANVAS_WIDTH;
+                    canvas.style.width = containerWidth + 'px';
+                    canvas.style.height = Math.floor(CANVAS_HEIGHT * scale) + 'px';
+                } else {
+                    canvas.style.width = CANVAS_WIDTH + 'px';
+                    canvas.style.height = CANVAS_HEIGHT + 'px';
+                }
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // ==================== 启动 ====================
+            init();
+
+            console.log('🚀 速度选择器模拟已就绪');
+            console.log('   - 电场E: ' + electricFieldE.toFixed(2) + ' (可调范围1-15)');
+            console.log('   - 磁场B: ' + magneticFieldB.toFixed(3) + ' (可调范围0.005-0.08)');
+            console.log('   - 目标速度 v=E/B: ' + getTargetSpeed().toFixed(1) + ' px/s');
+            console.log('   - 粒子数量: ' + particles.length);
+            console.log('   - 粒子速度: ' + particles.map(p => p.initialSpeed).join(', ') + ' px/s');
+            console.log('   - 按R键重置 | 拖动滑块实时调整参数');
+            console.log('   - 金色粒子 = 匹配速度 | 红色粒子 = 低速 | 蓝色粒子 = 高速');
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>质点小球正碰实验 · 初速度可调</title>
+    <style>
+        :root {
+            --bg: #f5f0eb;
+            --card-bg: #ffffff;
+            --text: #2c2416;
+            --text-secondary: #5c5347;
+            --accent1: #e74c3c;
+            --accent2: #2980b9;
+            --accent1-light: #fde8e5;
+            --accent2-light: #e3f0fa;
+            --border: #e0d9cf;
+            --shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.10);
+            --radius: 14px;
+            --radius-sm: 8px;
+            --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --ground-color: #c4b5a5;
+            --ground-line: #8b7355;
+            --canvas-bg: #faf8f5;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(160deg, #f0ebe3 0%, #e8e0d5 30%, #f2ece4 60%, #ede5db 100%);
+            background-attachment: fixed;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 860px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border);
+        }
+
+        .header {
+            text-align: center;
+            padding: 24px 28px 18px 28px;
+            background: linear-gradient(180deg, #fefdfb 0%, #fcfaf7 100%);
+            border-bottom: 1px solid var(--border);
+            position: relative;
+        }
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent1), var(--accent2));
+            border-radius: 3px;
+        }
+        .header .icon-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-bottom: 4px;
+        }
+        .header .physics-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        .icon-ball1 {
+            background: var(--accent1-light);
+            color: var(--accent1);
+        }
+        .icon-ball2 {
+            background: var(--accent2-light);
+            color: var(--accent2);
+        }
+        .header h1 {
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            color: var(--text);
+            line-height: 1.3;
+        }
+        .header .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+            letter-spacing: 0.03em;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            background: var(--canvas-bg);
+            padding: 8px 16px 4px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .canvas-wrapper .section-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            padding-left: 4px;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: var(--radius-sm);
+            background: #fdfcf9;
+            border: 1px solid #e8e2d8;
+            cursor: default;
+            touch-action: none;
+        }
+
+        .info-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px 20px;
+            background: #fdfcf9;
+            border-bottom: 1px solid var(--border);
+            justify-content: center;
+            align-items: center;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+        .info-item {
+            background: #f9f6f1;
+            border-radius: 20px;
+            padding: 6px 14px;
+            white-space: nowrap;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            border: 1px solid #ece6dc;
+            transition: var(--transition);
+        }
+        .info-item .val {
+            font-weight: 700;
+            color: var(--text);
+            transition: color 0.15s;
+        }
+        .info-item.momentum .val {
+            color: #8e44ad;
+        }
+        .info-item.energy .val {
+            color: #c0392b;
+        }
+        .info-item.collisions .val {
+            color: #d35400;
+        }
+
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 18px 20px 14px 20px;
+            background: #fefdfb;
+            border-bottom: 1px solid var(--border);
+        }
+        @media (max-width: 600px) {
+            .control-panel {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+        .ball-card {
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            border: 1px solid var(--border);
+            background: #fffefc;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+        .ball-card.card1 {
+            border-left: 4px solid var(--accent1);
+            background: linear-gradient(135deg, #fffefc 0%, #fef9f8 100%);
+        }
+        .ball-card.card2 {
+            border-left: 4px solid var(--accent2);
+            background: linear-gradient(135deg, #fffefc 0%, #f8fafd 100%);
+        }
+        .ball-card h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.02em;
+        }
+        .ball-card h3 .dot {
+            display: inline-block;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .dot1 {
+            background: radial-gradient(circle at 35% 30%, #f8716b, #c0392b);
+            box-shadow: 0 2px 6px rgba(231, 76, 60, 0.4);
+        }
+        .dot2 {
+            background: radial-gradient(circle at 35% 30%, #5dade2, #1a6daa);
+            box-shadow: 0 2px 6px rgba(41, 128, 185, 0.4);
+        }
+
+        .param-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .param-row:last-child {
+            margin-bottom: 0;
+        }
+        .param-row label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            min-width: 38px;
+            letter-spacing: 0.02em;
+            flex-shrink: 0;
+        }
+        .param-row input[type="range"] {
+            flex: 1;
+            min-width: 80px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            border-radius: 3px;
+            background: #e0d9cf;
+            outline: none;
+            cursor: pointer;
+            accent-color: #666;
+        }
+        .param-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #888;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.13);
+            transition: var(--transition);
+        }
+        .param-row input[type="range"]::-webkit-slider-thumb:hover {
+            border-color: #444;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+        }
+        .param-row .range-val {
+            font-weight: 700;
+            font-size: 0.85rem;
+            min-width: 42px;
+            text-align: right;
+            color: var(--text);
+            flex-shrink: 0;
+        }
+        .direction-btns {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .dir-btn {
+            padding: 6px 13px;
+            border-radius: 18px;
+            border: 1.5px solid #d5cec4;
+            background: #faf8f4;
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            transition: var(--transition);
+            color: #6b6055;
+            white-space: nowrap;
+            user-select: none;
+        }
+        .dir-btn:hover {
+            background: #f0ebe1;
+            border-color: #b8a99a;
+            color: #3d352b;
+        }
+        .dir-btn.active-left {
+            background: #fde8e5;
+            border-color: #e74c3c;
+            color: #c0392b;
+            box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.08);
+        }
+        .dir-btn.active-right {
+            background: #e3f0fa;
+            border-color: #2980b9;
+            color: #1a5276;
+            box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.08);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            padding: 14px 20px 18px 20px;
+            background: #fefdfb;
+            justify-content: center;
+            flex-wrap: wrap;
+            border-top: 1px solid transparent;
+        }
+        .btn {
+            padding: 10px 22px;
+            border-radius: 24px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            transition: var(--transition);
+            color: #fff;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.10);
+            user-select: none;
+            white-space: nowrap;
+        }
+        .btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+        }
+        .btn-start {
+            background: #27ae60;
+        }
+        .btn-start:hover {
+            background: #219a52;
+            box-shadow: 0 5px 16px rgba(39, 174, 96, 0.3);
+        }
+        .btn-pause {
+            background: #f39c12;
+        }
+        .btn-pause:hover {
+            background: #e08e0b;
+            box-shadow: 0 5px 16px rgba(243, 156, 18, 0.3);
+        }
+        .btn-reset {
+            background: #7f8c8d;
+        }
+        .btn-reset:hover {
+            background: #6c7a7b;
+            box-shadow: 0 5px 16px rgba(127, 140, 141, 0.3);
+        }
+
+        @media (max-width: 700px) {
+            .header h1 {
+                font-size: 1.35rem;
+            }
+            .ball-card {
+                padding: 12px 14px;
+            }
+            .btn {
+                padding: 8px 16px;
+                font-size: 0.8rem;
+            }
+            .info-strip {
+                gap: 6px;
+                padding: 8px 12px;
+                font-size: 0.74rem;
+            }
+            .info-item {
+                padding: 4px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- 大标题 -->
+        <div class="header">
+            <div class="icon-row">
+                <span class="physics-icon icon-ball1">●</span>
+                <h1>质点小球正碰实验</h1>
+                <span class="physics-icon icon-ball2">●</span>
+            </div>
+            <p class="subtitle">一维完全弹性碰撞 · 动量守恒 &amp; 动能守恒</p>
+        </div>
+
+        <!-- 动画区 -->
+        <div class="canvas-wrapper">
+            <div class="section-label">📐 动画模拟区</div>
+            <canvas id="physicsCanvas" width="820" height="380" aria-label="物理动画画布"></canvas>
+        </div>
+
+        <!-- 实时数据 -->
+        <div class="info-strip" id="infoStrip">
+            <span class="info-item momentum">总动量 <span class="val" id="totalMomentum">0.00</span> kg·m/s</span>
+            <span class="info-item energy">总动能 <span class="val" id="totalKinetic">0.00</span> J</span>
+            <span class="info-item collisions">碰撞次数 <span class="val" id="collisionCount">0</span></span>
+            <span class="info-item">球1速度 <span class="val" id="liveV1" style="color:#c0392b;">0.00</span> m/s</span>
+            <span class="info-item">球2速度 <span class="val" id="liveV2" style="color:#1a6daa;">0.00</span> m/s</span>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <!-- 小球A -->
+            <div class="ball-card card1">
+                <h3><span class="dot dot1"></span>小球 A（左侧）</h3>
+                <div class="param-row">
+                    <label>质量</label>
+                    <input type="range" id="mass1" min="0.5" max="6" step="0.1" value="1.5">
+                    <span class="range-val" id="mass1Val">1.5 kg</span>
+                </div>
+                <div class="param-row">
+                    <label>初速度</label>
+                    <input type="range" id="speed1" min="0.3" max="7" step="0.1" value="2.5">
+                    <span class="range-val" id="speed1Val">2.5 m/s</span>
+                </div>
+                <div class="param-row">
+                    <label>方向</label>
+                    <div class="direction-btns" id="dirBtns1">
+                        <button class="dir-btn active-left" data-dir="left">← 向左</button>
+                        <button class="dir-btn" data-dir="right">向右 →</button>
+                    </div>
+                </div>
+            </div>
+            <!-- 小球B -->
+            <div class="ball-card card2">
+                <h3><span class="dot dot2"></span>小球 B（右侧）</h3>
+                <div class="param-row">
+                    <label>质量</label>
+                    <input type="range" id="mass2" min="0.5" max="6" step="0.1" value="1.5">
+                    <span class="range-val" id="mass2Val">1.5 kg</span>
+                </div>
+                <div class="param-row">
+                    <label>初速度</label>
+                    <input type="range" id="speed2" min="0.3" max="7" step="0.1" value="2.0">
+                    <span class="range-val" id="speed2Val">2.0 m/s</span>
+                </div>
+                <div class="param-row">
+                    <label>方向</label>
+                    <div class="direction-btns" id="dirBtns2">
+                        <button class="dir-btn active-left" data-dir="left">← 向左</button>
+                        <button class="dir-btn" data-dir="right">向右 →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 按钮区（移除了加速/减速按钮） -->
+        <div class="btn-row">
+            <button class="btn btn-start" id="btnStart" title="开始动画">▶ 开始</button>
+            <button class="btn btn-pause" id="btnPause" title="暂停动画">⏸ 暂停</button>
+            <button class="btn btn-reset" id="btnReset" title="重置到初始状态">↺ 重置</button>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ==================== DOM元素 ====================
+            const canvas = document.getElementById('physicsCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // 小球1控件
+            const mass1Slider = document.getElementById('mass1');
+            const speed1Slider = document.getElementById('speed1');
+            const mass1Val = document.getElementById('mass1Val');
+            const speed1Val = document.getElementById('speed1Val');
+            const dirBtns1 = document.getElementById('dirBtns1');
+
+            // 小球2控件
+            const mass2Slider = document.getElementById('mass2');
+            const speed2Slider = document.getElementById('speed2');
+            const mass2Val = document.getElementById('mass2Val');
+            const speed2Val = document.getElementById('speed2Val');
+            const dirBtns2 = document.getElementById('dirBtns2');
+
+            // 按钮
+            const btnStart = document.getElementById('btnStart');
+            const btnPause = document.getElementById('btnPause');
+            const btnReset = document.getElementById('btnReset');
+
+            // 数据显示
+            const totalMomentumEl = document.getElementById('totalMomentum');
+            const totalKineticEl = document.getElementById('totalKinetic');
+            const collisionCountEl = document.getElementById('collisionCount');
+            const liveV1El = document.getElementById('liveV1');
+            const liveV2El = document.getElementById('liveV2');
+
+            // ==================== 常量与配置 ====================
+            const CANVAS_W = canvas.width;
+            const CANVAS_H = canvas.height;
+            const GROUND_Y = 280;
+            const BALL_RADIUS = 26;
+            const PX_PER_METER = 58;
+            const COLLISION_COOLDOWN_FRAMES = 3;
+
+            // ==================== 小球状态 ====================
+            let ball1 = {
+                x: 175,
+                y: GROUND_Y - BALL_RADIUS,
+                radius: BALL_RADIUS,
+                mass: 1.5,
+                speedAbs: 2.5,
+                direction: 'right',
+                vx: 2.5,
+                color: '#e74c3c',
+                colorLight: '#f8716b',
+                colorDark: '#b03a2e',
+                collisionCooldown: 0,
+                trailPositions: [],
+            };
+
+            let ball2 = {
+                x: 610,
+                y: GROUND_Y - BALL_RADIUS,
+                radius: BALL_RADIUS,
+                mass: 1.5,
+                speedAbs: 2.0,
+                direction: 'left',
+                vx: -2.0,
+                color: '#2980b9',
+                colorLight: '#5dade2',
+                colorDark: '#1a5276',
+                collisionCooldown: 0,
+                trailPositions: [],
+            };
+
+            // ==================== 全局状态 ====================
+            let isRunning = true;
+            let collisionCount = 0;
+            let lastTimestamp = null;
+            let animFrameId = null;
+            let collisionFlashAlpha = 0;
+            let collisionFlashX = 0;
+
+            // ==================== 辅助函数 ====================
+            function calcVelocity(speedAbs, direction) {
+                return direction === 'right' ? speedAbs : -speedAbs;
+            }
+
+            function syncBallVx(b) {
+                b.vx = calcVelocity(b.speedAbs, b.direction);
+            }
+
+            function getPixelVelocity(b) {
+                return b.vx * PX_PER_METER;
+            }
+
+            // ==================== 初始化同步 ====================
+            function syncAllFromUI() {
+                ball1.mass = parseFloat(mass1Slider.value);
+                ball1.speedAbs = parseFloat(speed1Slider.value);
+                const activeDir1 = dirBtns1.querySelector('.dir-btn.active-left, .dir-btn.active-right');
+                if (activeDir1) ball1.direction = activeDir1.dataset.dir;
+                syncBallVx(ball1);
+
+                ball2.mass = parseFloat(mass2Slider.value);
+                ball2.speedAbs = parseFloat(speed2Slider.value);
+                const activeDir2 = dirBtns2.querySelector('.dir-btn.active-left, .dir-btn.active-right');
+                if (activeDir2) ball2.direction = activeDir2.dataset.dir;
+                syncBallVx(ball2);
+
+                updateUIValues();
+            }
+
+            function updateUIValues() {
+                mass1Val.textContent = ball1.mass.toFixed(1) + ' kg';
+                speed1Val.textContent = ball1.speedAbs.toFixed(1) + ' m/s';
+                mass2Val.textContent = ball2.mass.toFixed(1) + ' kg';
+                speed2Val.textContent = ball2.speedAbs.toFixed(1) + ' m/s';
+
+                updateDirButtonsUI(dirBtns1, ball1.direction);
+                updateDirButtonsUI(dirBtns2, ball2.direction);
+
+                mass1Slider.value = ball1.mass;
+                speed1Slider.value = ball1.speedAbs;
+                mass2Slider.value = ball2.mass;
+                speed2Slider.value = ball2.speedAbs;
+            }
+
+            function updateDirButtonsUI(container, direction) {
+                const buttons = container.querySelectorAll('.dir-btn');
+                buttons.forEach(btn => {
+                    btn.classList.remove('active-left', 'active-right');
+                    if (btn.dataset.dir === direction) {
+                        btn.classList.add(direction === 'left' ? 'active-left' : 'active-right');
+                    }
+                });
+            }
+
+            // ==================== 物理计算 ====================
+            function elasticCollision(b1, b2) {
+                const m1 = b1.mass;
+                const m2 = b2.mass;
+                const v1 = b1.vx;
+                const v2 = b2.vx;
+                const mSum = m1 + m2;
+
+                const v1New = ((m1 - m2) * v1 + 2 * m2 * v2) / mSum;
+                const v2New = ((m2 - m1) * v2 + 2 * m1 * v1) / mSum;
+
+                b1.vx = v1New;
+                b2.vx = v2New;
+
+                b1.speedAbs = Math.abs(b1.vx);
+                b1.direction = b1.vx >= 0 ? 'right' : 'left';
+                b2.speedAbs = Math.abs(b2.vx);
+                b2.direction = b2.vx >= 0 ? 'right' : 'left';
+
+                b1.collisionCooldown = COLLISION_COOLDOWN_FRAMES;
+                b2.collisionCooldown = COLLISION_COOLDOWN_FRAMES;
+            }
+
+            function checkCollision(b1, b2) {
+                if (b1.collisionCooldown > 0 || b2.collisionCooldown > 0) return false;
+                const dist = Math.abs(b1.x - b2.x);
+                const minDist = b1.radius + b2.radius;
+                if (dist <= minDist) {
+                    collisionFlashX = (b1.x + b2.x) / 2;
+                    collisionFlashAlpha = 1.0;
+                    elasticCollision(b1, b2);
+
+                    const overlap = minDist - dist;
+                    if (overlap > 0) {
+                        const totalMass = b1.mass + b2.mass;
+                        const ratio1 = b2.mass / totalMass;
+                        const ratio2 = b1.mass / totalMass;
+                        if (b1.x < b2.x) {
+                            b1.x -= overlap * ratio1;
+                            b2.x += overlap * ratio2;
+                        } else {
+                            b1.x += overlap * ratio1;
+                            b2.x -= overlap * ratio2;
+                        }
+                    }
+                    collisionCount++;
+                    updateInfoDisplay();
+                    return true;
+                }
+                return false;
+            }
+
+            function checkWallBounce(b) {
+                const minX = b.radius;
+                const maxX = CANVAS_W - b.radius;
+                if (b.x <= minX) {
+                    b.x = minX;
+                    b.vx = Math.abs(b.vx);
+                    b.speedAbs = Math.abs(b.vx);
+                    b.direction = 'right';
+                    b.collisionCooldown = COLLISION_COOLDOWN_FRAMES;
+                } else if (b.x >= maxX) {
+                    b.x = maxX;
+                    b.vx = -Math.abs(b.vx);
+                    b.speedAbs = Math.abs(b.vx);
+                    b.direction = 'left';
+                    b.collisionCooldown = COLLISION_COOLDOWN_FRAMES;
+                }
+            }
+
+            function updateInfoDisplay() {
+                const totalMomentum = ball1.mass * ball1.vx + ball2.mass * ball2.vx;
+                const totalKinetic = 0.5 * ball1.mass * ball1.vx * ball1.vx + 0.5 * ball2.mass * ball2.vx * ball2.vx;
+                totalMomentumEl.textContent = totalMomentum.toFixed(2);
+                totalKineticEl.textContent = totalKinetic.toFixed(2);
+                collisionCountEl.textContent = collisionCount;
+                liveV1El.textContent = ball1.vx.toFixed(2);
+                liveV2El.textContent = ball2.vx.toFixed(2);
+            }
+
+            // ==================== 重置函数 ====================
+            function resetSimulation(keepParams = true) {
+                if (keepParams) syncAllFromUI();
+                ball1.x = 175;
+                ball1.y = GROUND_Y - BALL_RADIUS;
+                ball1.trailPositions = [];
+                ball1.collisionCooldown = 0;
+                ball2.x = 610;
+                ball2.y = GROUND_Y - BALL_RADIUS;
+                ball2.trailPositions = [];
+                ball2.collisionCooldown = 0;
+                collisionCount = 0;
+                collisionFlashAlpha = 0;
+                collisionFlashX = 0;
+                syncBallVx(ball1);
+                syncBallVx(ball2);
+                updateUIValues();
+                updateInfoDisplay();
+                lastTimestamp = null;
+            }
+
+            // ==================== 动画循环 ====================
+            function animate(timestamp) {
+                if (!isRunning) {
+                    lastTimestamp = null;
+                    animFrameId = requestAnimationFrame(animate);
+                    drawFrame();
+                    return;
+                }
+
+                if (lastTimestamp === null) {
+                    lastTimestamp = timestamp;
+                }
+                let dt = (timestamp - lastTimestamp) / 1000;
+                if (dt <= 0) dt = 0.016;
+                if (dt > 0.1) dt = 0.1;
+                // 时间流速固定为1（已移除加减速功能）
+                dt *= 1.0;
+                lastTimestamp = timestamp;
+
+                if (ball1.collisionCooldown > 0) ball1.collisionCooldown--;
+                if (ball2.collisionCooldown > 0) ball2.collisionCooldown--;
+
+                ball1.x += ball1.vx * PX_PER_METER * dt;
+                ball2.x += ball2.vx * PX_PER_METER * dt;
+
+                checkWallBounce(ball1);
+                checkWallBounce(ball2);
+                checkCollision(ball1, ball2);
+
+                updateTrail(ball1, dt);
+                updateTrail(ball2, dt);
+
+                if (collisionFlashAlpha > 0) {
+                    collisionFlashAlpha -= dt * 2.5;
+                    if (collisionFlashAlpha < 0) collisionFlashAlpha = 0;
+                }
+
+                updateInfoDisplay();
+                updateUIValues();
+                drawFrame();
+
+                animFrameId = requestAnimationFrame(animate);
+            }
+
+            function updateTrail(b, dt) {
+                if (!b._trailTimer) b._trailTimer = 0;
+                b._trailTimer += dt;
+                const interval = 0.025;
+                while (b._trailTimer >= interval) {
+                    b._trailTimer -= interval;
+                    b.trailPositions.push({ x: b.x, y: b.y, alpha: 0.55 });
+                }
+                const maxTrail = 40;
+                while (b.trailPositions.length > maxTrail) {
+                    b.trailPositions.shift();
+                }
+                for (let i = b.trailPositions.length - 1; i >= 0; i--) {
+                    b.trailPositions[i].alpha -= dt * 1.6;
+                    if (b.trailPositions[i].alpha <= 0.01) {
+                        b.trailPositions.splice(i, 1);
+                    }
+                }
+            }
+
+            // ==================== 绘制函数 ====================
+            function drawFrame() {
+                ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+                const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+                bgGrad.addColorStop(0, '#fdfcf9');
+                bgGrad.addColorStop(0.55, '#f9f6f0');
+                bgGrad.addColorStop(1, '#f3efe7');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+                ctx.strokeStyle = 'rgba(180,170,155,0.18)';
+                ctx.lineWidth = 0.5;
+                const gridSpacing = 50;
+                for (let gx = gridSpacing; gx < CANVAS_W; gx += gridSpacing) {
+                    ctx.beginPath();
+                    ctx.moveTo(gx, 0);
+                    ctx.lineTo(gx, GROUND_Y);
+                    ctx.stroke();
+                }
+                for (let gy = gridSpacing; gy < GROUND_Y; gy += gridSpacing) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, gy);
+                    ctx.lineTo(CANVAS_W, gy);
+                    ctx.stroke();
+                }
+
+                const groundGrad = ctx.createLinearGradient(0, GROUND_Y, 0, GROUND_Y + 30);
+                groundGrad.addColorStop(0, '#c4b5a5');
+                groundGrad.addColorStop(0.03, '#b8a898');
+                groundGrad.addColorStop(0.15, '#d5c9bb');
+                groundGrad.addColorStop(0.5, '#c7b9a9');
+                groundGrad.addColorStop(1, '#a89885');
+                ctx.fillStyle = groundGrad;
+                ctx.fillRect(0, GROUND_Y, CANVAS_W, CANVAS_H - GROUND_Y);
+
+                ctx.strokeStyle = '#8b7355';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(0, GROUND_Y);
+                ctx.lineTo(CANVAS_W, GROUND_Y);
+                ctx.stroke();
+
+                ctx.strokeStyle = 'rgba(139,115,85,0.25)';
+                ctx.lineWidth = 0.8;
+                for (let tx = 15; tx < CANVAS_W; tx += 35) {
+                    ctx.beginPath();
+                    ctx.moveTo(tx, GROUND_Y + 4);
+                    ctx.lineTo(tx - 12, GROUND_Y + 18);
+                    ctx.stroke();
+                }
+                for (let tx = 30; tx < CANVAS_W; tx += 45) {
+                    ctx.beginPath();
+                    ctx.moveTo(tx, GROUND_Y + 6);
+                    ctx.lineTo(tx + 14, GROUND_Y + 22);
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = 'rgba(100,80,60,0.5)';
+                ctx.font = 'italic 12px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('水平面', CANVAS_W / 2, GROUND_Y + 45);
+
+                if (collisionFlashAlpha > 0.01) {
+                    const flashGrad = ctx.createRadialGradient(collisionFlashX, GROUND_Y - BALL_RADIUS, 5,
+                        collisionFlashX, GROUND_Y - BALL_RADIUS, 80);
+                    flashGrad.addColorStop(0, `rgba(255,220,100,${collisionFlashAlpha * 0.9})`);
+                    flashGrad.addColorStop(0.4, `rgba(255,180,60,${collisionFlashAlpha * 0.5})`);
+                    flashGrad.addColorStop(1, `rgba(255,150,30,0)`);
+                    ctx.fillStyle = flashGrad;
+                    ctx.beginPath();
+                    ctx.arc(collisionFlashX, GROUND_Y - BALL_RADIUS, 80, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    const particleCount = Math.floor(collisionFlashAlpha * 20);
+                    for (let p = 0; p < particleCount; p++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * 65;
+                        const px = collisionFlashX + Math.cos(angle) * dist;
+                        const py = GROUND_Y - BALL_RADIUS + Math.sin(angle) * dist;
+                        const pAlpha = collisionFlashAlpha * (0.4 + Math.random() * 0.6);
+                        ctx.fillStyle = `rgba(255,240,180,${pAlpha})`;
+                        ctx.beginPath();
+                        ctx.arc(px, py, 1.5 + Math.random() * 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                drawTrail(ball1);
+                drawTrail(ball2);
+                drawBall(ball1);
+                drawBall(ball2);
+                drawVelocityArrow(ball1);
+                drawVelocityArrow(ball2);
+                drawBallLabel(ball1, 'A');
+                drawBallLabel(ball2, 'B');
+                drawRulerMarks();
+                drawLegend();
+            }
+
+            function drawTrail(b) {
+                if (b.trailPositions.length < 2) return;
+                const trailColor = b === ball1 ? 'rgba(231,76,60,' : 'rgba(41,128,185,';
+                for (let i = 1; i < b.trailPositions.length; i++) {
+                    const p0 = b.trailPositions[i - 1];
+                    const p1 = b.trailPositions[i];
+                    const alpha = Math.min(p0.alpha, p1.alpha);
+                    if (alpha < 0.02) continue;
+                    ctx.strokeStyle = trailColor + (alpha * 0.7).toFixed(3) + ')';
+                    ctx.lineWidth = 3 + alpha * 5;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(p0.x, p0.y);
+                    ctx.lineTo(p1.x, p1.y);
+                    ctx.stroke();
+                }
+                ctx.lineCap = 'butt';
+            }
+
+            function drawBall(b) {
+                const { x, y, radius, color, colorLight, colorDark } = b;
+                ctx.fillStyle = 'rgba(60,40,20,0.22)';
+                ctx.beginPath();
+                ctx.ellipse(x, GROUND_Y + 5, radius * 0.85, radius * 0.25, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                const grad = ctx.createRadialGradient(x - radius * 0.28, y - radius * 0.35, radius * 0.08, x, y, radius);
+                grad.addColorStop(0, colorLight);
+                grad.addColorStop(0.55, color);
+                grad.addColorStop(1, colorDark);
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                const highlightGrad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.38, radius * 0.04,
+                    x - radius * 0.05, y - radius * 0.1, radius * 0.75);
+                highlightGrad.addColorStop(0, 'rgba(255,255,255,0.7)');
+                highlightGrad.addColorStop(0.5, 'rgba(255,255,255,0.18)');
+                highlightGrad.addColorStop(1, 'rgba(255,255,255,0)');
+                ctx.fillStyle = highlightGrad;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = colorDark;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            function drawVelocityArrow(b) {
+                const vxPx = b.vx * PX_PER_METER;
+                const absVx = Math.abs(vxPx);
+                if (absVx < 2) return;
+                const arrowLength = Math.min(absVx * 0.55, 90);
+                const arrowDir = Math.sign(vxPx);
+                const startX = b.x + arrowDir * (b.radius + 6);
+                const endX = startX + arrowDir * arrowLength;
+                const arrowY = b.y - b.radius - 22;
+                const headSize = Math.min(arrowLength * 0.3, 14);
+
+                ctx.strokeStyle = b === ball1 ? 'rgba(200,50,40,0.85)' : 'rgba(35,100,160,0.85)';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(startX, arrowY);
+                ctx.lineTo(endX, arrowY);
+                ctx.stroke();
+
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.beginPath();
+                ctx.moveTo(endX, arrowY);
+                ctx.lineTo(endX - arrowDir * headSize, arrowY - headSize * 0.65);
+                ctx.lineTo(endX - arrowDir * headSize, arrowY + headSize * 0.65);
+                ctx.closePath();
+                ctx.fill();
+                ctx.lineCap = 'butt';
+            }
+
+            function drawBallLabel(b, label) {
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 13px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, b.x, b.y);
+
+                ctx.fillStyle = b === ball1 ? '#b03a2e' : '#1a5276';
+                ctx.font = '600 11px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.fillText(b === ball1 ? '小球A' : '小球B', b.x, b.y - b.radius - 36);
+            }
+
+            function drawRulerMarks() {
+                ctx.fillStyle = 'rgba(120,100,80,0.45)';
+                ctx.font = '10px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'center';
+                const rulerY = GROUND_Y - 8;
+                for (let rx = 50; rx < CANVAS_W; rx += 100) {
+                    ctx.beginPath();
+                    ctx.moveTo(rx, GROUND_Y);
+                    ctx.lineTo(rx, GROUND_Y - 7);
+                    ctx.strokeStyle = 'rgba(130,110,90,0.35)';
+                    ctx.lineWidth = 0.6;
+                    ctx.stroke();
+                    ctx.fillText(rx + 'px', rx, rulerY);
+                }
+            }
+
+            function drawLegend() {
+                const lx = CANVAS_W - 175;
+                const ly = 18;
+                ctx.fillStyle = 'rgba(255,255,255,0.85)';
+                ctx.strokeStyle = 'rgba(180,165,145,0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.roundRect(lx - 8, ly - 4, 168, 52, 8);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#b03a2e';
+                ctx.font = '600 10px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('● 小球A', lx + 4, ly + 14);
+                ctx.fillStyle = '#1a5276';
+                ctx.fillText('● 小球B', lx + 4, ly + 34);
+                ctx.fillStyle = 'rgba(100,80,60,0.7)';
+                ctx.fillText('→ 速度方向', lx + 80, ly + 24);
+            }
+
+            // ==================== 事件处理 ====================
+            dirBtns1.addEventListener('click', (e) => {
+                const btn = e.target.closest('.dir-btn');
+                if (!btn) return;
+                const newDir = btn.dataset.dir;
+                if (ball1.direction !== newDir) {
+                    ball1.direction = newDir;
+                    syncBallVx(ball1);
+                    ball1.collisionCooldown = 0;
+                    updateUIValues();
+                    updateInfoDisplay();
+                }
+            });
+
+            dirBtns2.addEventListener('click', (e) => {
+                const btn = e.target.closest('.dir-btn');
+                if (!btn) return;
+                const newDir = btn.dataset.dir;
+                if (ball2.direction !== newDir) {
+                    ball2.direction = newDir;
+                    syncBallVx(ball2);
+                    ball2.collisionCooldown = 0;
+                    updateUIValues();
+                    updateInfoDisplay();
+                }
+            });
+
+            mass1Slider.addEventListener('input', () => {
+                ball1.mass = parseFloat(mass1Slider.value);
+                mass1Val.textContent = ball1.mass.toFixed(1) + ' kg';
+                updateInfoDisplay();
+            });
+            mass2Slider.addEventListener('input', () => {
+                ball2.mass = parseFloat(mass2Slider.value);
+                mass2Val.textContent = ball2.mass.toFixed(1) + ' kg';
+                updateInfoDisplay();
+            });
+
+            speed1Slider.addEventListener('input', () => {
+                ball1.speedAbs = parseFloat(speed1Slider.value);
+                syncBallVx(ball1);
+                ball1.collisionCooldown = 0;
+                speed1Val.textContent = ball1.speedAbs.toFixed(1) + ' m/s';
+                updateInfoDisplay();
+            });
+            speed2Slider.addEventListener('input', () => {
+                ball2.speedAbs = parseFloat(speed2Slider.value);
+                syncBallVx(ball2);
+                ball2.collisionCooldown = 0;
+                speed2Val.textContent = ball2.speedAbs.toFixed(1) + ' m/s';
+                updateInfoDisplay();
+            });
+
+            btnStart.addEventListener('click', () => {
+                isRunning = true;
+                lastTimestamp = null;
+                btnStart.style.opacity = '1';
+                btnPause.style.opacity = '0.7';
+            });
+
+            btnPause.addEventListener('click', () => {
+                isRunning = false;
+                lastTimestamp = null;
+                btnPause.style.opacity = '1';
+                btnStart.style.opacity = '0.7';
+            });
+
+            btnReset.addEventListener('click', () => {
+                resetSimulation(true);
+                isRunning = false;
+                lastTimestamp = null;
+                btnStart.style.opacity = '1';
+                btnPause.style.opacity = '0.7';
+            });
+
+            canvas.addEventListener('dblclick', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = CANVAS_W / rect.width;
+                const scaleY = CANVAS_H / rect.height;
+                const clickX = (e.clientX - rect.left) * scaleX;
+                const clickY = (e.clientY - rect.top) * scaleY;
+
+                const dist1 = Math.hypot(clickX - ball1.x, clickY - ball1.y);
+                const dist2 = Math.hypot(clickX - ball2.x, clickY - ball2.y);
+                const threshold = BALL_RADIUS + 30;
+
+                if (dist1 < threshold && dist1 < dist2) {
+                    ball1.x = Math.max(ball1.radius, Math.min(CANVAS_W - ball1.radius, clickX));
+                    ball1.trailPositions = [];
+                    ball1.collisionCooldown = 0;
+                } else if (dist2 < threshold && dist2 < dist1) {
+                    ball2.x = Math.max(ball2.radius, Math.min(CANVAS_W - ball2.radius, clickX));
+                    ball2.trailPositions = [];
+                    ball2.collisionCooldown = 0;
+                }
+                updateInfoDisplay();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                switch (e.key.toLowerCase()) {
+                    case ' ':
+                        e.preventDefault();
+                        isRunning = !isRunning;
+                        lastTimestamp = null;
+                        if (isRunning) {
+                            btnStart.style.opacity = '1';
+                            btnPause.style.opacity = '0.7';
+                        } else {
+                            btnPause.style.opacity = '1';
+                            btnStart.style.opacity = '0.7';
+                        }
+                        break;
+                    case 'r':
+                        if (!e.ctrlKey && !e.metaKey) {
+                            e.preventDefault();
+                            resetSimulation(true);
+                            isRunning = false;
+                            lastTimestamp = null;
+                            btnStart.style.opacity = '1';
+                            btnPause.style.opacity = '0.7';
+                        }
+                        break;
+                }
+            });
+
+            window.addEventListener('resize', () => {});
+
+            // roundRect polyfill
+            if (!ctx.roundRect) {
+                ctx.roundRect = function(x, y, w, h, r) {
+                    if (typeof r === 'number') r = { tl: r, tr: r, br: r, bl: r };
+                    ctx.beginPath();
+                    ctx.moveTo(x + r.tl, y);
+                    ctx.lineTo(x + w - r.tr, y);
+                    ctx.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+                    ctx.lineTo(x + w, y + h - r.br);
+                    ctx.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+                    ctx.lineTo(x + r.bl, y + h);
+                    ctx.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+                    ctx.lineTo(x, y + r.tl);
+                    ctx.quadraticCurveTo(x, y, x + r.tl, y);
+                    ctx.closePath();
+                };
+            }
+
+            function init() {
+                syncAllFromUI();
+                resetSimulation(false);
+                updateInfoDisplay();
+                btnStart.style.opacity = '1';
+                btnPause.style.opacity = '0.7';
+                isRunning = true;
+                lastTimestamp = null;
+                animFrameId = requestAnimationFrame(animate);
+            }
+
+            init();
+
+            console.log('✅ 质点小球正碰实验已就绪 (初速度可调)');
+            console.log('   🖱 双击Canvas可拖动小球');
+            console.log('   ⌨ 按空格键暂停/继续');
+            console.log('   ⌨ 按R键重置 (重置后暂停，需点击开始)');
+        })();
+    </script>
+</body>
+</html>

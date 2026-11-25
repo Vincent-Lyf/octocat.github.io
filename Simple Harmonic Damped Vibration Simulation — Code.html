@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>⚡ 谐振·量子幻境 | 简谐运动与阻尼振动模拟器 ⚙️</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 30%, #0a0f1e, #010408);
+            font-family: 'Segoe UI', 'Orbitron', 'Poppins', 'Monaco', 'Cascadia Code', monospace;
+            color: #ccf4ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px 20px;
+        }
+
+        .simulator-container {
+            max-width: 1600px;
+            width: 100%;
+            backdrop-filter: blur(2px);
+            background: rgba(8, 18, 28, 0.65);
+            border-radius: 2.8rem;
+            padding: 1.5rem;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.7), 0 0 0 2px rgba(0, 255, 255, 0.3) inset, 0 0 25px rgba(0, 255, 255, 0.4);
+            border: 1px solid rgba(0, 255, 255, 0.5);
+        }
+
+        .header-area {
+            text-align: center;
+            margin-bottom: 1.2rem;
+        }
+        .main-title {
+            letter-spacing: 3px;
+            text-shadow: 0 0 8px cyan;
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        .sub {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+        .signature {
+            margin-top: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            background: rgba(0, 20, 40, 0.7);
+            display: inline-block;
+            padding: 0.2rem 1.2rem;
+            border-radius: 40px;
+            backdrop-filter: blur(5px);
+            border: 1px solid cyan;
+            letter-spacing: 1px;
+            color: #b0f0ff;
+        }
+
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            justify-content: center;
+        }
+
+        .left-panel {
+            flex: 1.2;
+            min-width: 520px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .canvas-card {
+            background: rgba(0, 10, 20, 0.7);
+            border-radius: 2rem;
+            padding: 0.8rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6), 0 0 0 1px #2affaa40;
+            backdrop-filter: blur(4px);
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            border-radius: 1.2rem;
+            box-shadow: 0 0 0 2px #0a2a3a, 0 5px 18px rgba(0,0,0,0.5);
+            background: #fefef5;
+        }
+
+        .anim-control-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 12px;
+            margin-bottom: 4px;
+        }
+        .anim-control-bar button {
+            background: linear-gradient(135deg, #0a2f3f, #01131f);
+            border: none;
+            padding: 0.5rem 1.8rem;
+            border-radius: 2.5rem;
+            color: #ccf;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 8px #00000060;
+            border: 1px solid #2affaa80;
+            font-size: 1rem;
+            letter-spacing: 1px;
+        }
+        .anim-control-bar button:hover {
+            background: #0f4b5e;
+            box-shadow: 0 0 14px cyan;
+            color: white;
+            transform: scale(1.02);
+        }
+
+        .hud-panel {
+            background: rgba(0, 15, 25, 0.85);
+            backdrop-filter: blur(8px);
+            border-radius: 1.8rem;
+            padding: 1rem 1.2rem;
+            border: 1px solid cyan;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.4);
+        }
+
+        .energy-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 0.8rem;
+        }
+
+        .metric {
+            background: #021a2b80;
+            border-radius: 1rem;
+            padding: 0.5rem;
+            text-align: center;
+            border-left: 3px solid #0ff;
+        }
+        .metric .label { font-size: 0.7rem; letter-spacing: 2px; color: #8dd0ff; }
+        .metric .value { font-size: 1.3rem; font-weight: bold; font-family: monospace; color: #bfffff; text-shadow: 0 0 5px cyan; }
+
+        .right-panel {
+            flex: 1.8;
+            min-width: 680px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        .control-console {
+            background: rgba(2, 12, 24, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 1.8rem;
+            padding: 1rem 1.5rem;
+            border: 1px solid #0ff88a;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .param-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.8rem;
+            margin-bottom: 0.8rem;
+            background: #02101860;
+            padding: 0.4rem 0.8rem;
+            border-radius: 2rem;
+        }
+        .param-row label { width: 110px; font-weight: bold; color: #7df9ff; }
+        input[type="range"] {
+            flex: 3;  /* 加长滑块区域 */
+            min-width: 260px;
+            background: #1a2a3a; height: 5px; border-radius: 5px;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            width: 16px; height: 16px; border-radius: 50%; background: cyan;
+            box-shadow: 0 0 8px cyan; cursor: pointer;
+        }
+        .param-value {
+            min-width: 55px; background: #000000aa; padding: 0.2rem 0.6rem;
+            border-radius: 20px; font-family: monospace; font-weight: bold; color: #0ff;
+        }
+        button {
+            background: linear-gradient(135deg, #0a2f3f, #01131f);
+            border: none; padding: 0.4rem 1.2rem; border-radius: 2rem;
+            color: #ccf; font-weight: bold; cursor: pointer; transition: 0.2s;
+            box-shadow: 0 2px 5px #00000040; border: 1px solid #2affaa50;
+        }
+        button:hover { background: #0f4b5e; box-shadow: 0 0 12px cyan; color: white; transform: scale(0.98); }
+        .equation-box {
+            background: #03131fc9; border-radius: 1.2rem; padding: 0.5rem 1rem;
+            font-family: monospace; font-size: 0.85rem; border-left: 6px solid cyan;
+            margin-bottom: 0.5rem;
+        }
+        .warning { color: #ffb347; background: #220000aa; padding: 0.1rem 0.5rem; border-radius: 20px; font-size: 0.7rem; }
+        .flex-btns { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
+        .legend { display: flex; gap: 15px; justify-content: center; margin-top: 5px; font-size: 0.7rem; }
+        .legend span { display: inline-block; width: 18px; height: 3px; margin-right: 4px; vertical-align: middle; }
+        
+        /* 新增派生参数信息栏 */
+        .derived-info {
+            margin-top: 12px;
+            background: #02101880;
+            border-radius: 1.2rem;
+            padding: 0.6rem 1rem;
+            border: 1px solid #2affaa60;
+            font-size: 0.75rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+        }
+        .derived-info span {
+            color: #b9f6ff;
+            font-family: monospace;
+        }
+        .info-label {
+            color: #8dd0ff;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 700px) { 
+            .dashboard { flex-direction: column; } 
+            .left-panel, .right-panel { min-width: auto; }
+            input[type="range"] { min-width: 180px; flex: 2; }
+        }
+    </style>
+</head>
+<body>
+<div class="simulator-container">
+    <div class="header-area">
+        <h1 class="main-title">🌀 谐振·量子幻境 🧬</h1>
+        <div class="sub">简谐运动 | 阻尼振动 | 能量演化 (动能❤️ 势能💚 总能量💙) | 醒目墙壁+霓虹弹簧</div>
+        <div class="signature">✨ 刘晴晴  车辆二班 ✨</div>
+    </div>
+
+    <div class="dashboard">
+        <!-- 左区：动画 + 能量仪表 -->
+        <div class="left-panel">
+            <div class="canvas-card">
+                <canvas id="animCanvas" width="560" height="330" style="width:100%; height:auto; background:#fefaf7;"></canvas>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; padding: 0 8px;">
+                    <span>📐 位移 x = <span id="currentXDisplay">0.000</span> m</span>
+                    <span>⚡ 速度 v = <span id="currentVDisplay">0.000</span> m/s</span>
+                    <span>🔥 加速度 a = <span id="currentADisplay">0.000</span> m/s²</span>
+                </div>
+                <div class="anim-control-bar">
+                    <button id="pauseBtn">⏸️ 暂停</button>
+                    <button id="resetBtn">🔄 重置</button>
+                </div>
+            </div>
+            <div class="hud-panel">
+                <div style="font-size:0.8rem; margin-bottom:4px;">💎 实时能量 (m=1kg, k=ω₀²)</div>
+                <div class="energy-grid">
+                    <div class="metric"><div class="label">动能 Ek ❤️</div><div class="value" id="ekValue">0.000</div></div>
+                    <div class="metric"><div class="label">势能 Ep 💚</div><div class="value" id="epValue">0.000</div></div>
+                    <div class="metric"><div class="label">总能量 E 💙</div><div class="value" id="etotValue">0.000</div></div>
+                    <div class="metric"><div class="label">阻尼比 ζ</div><div class="value" id="zetaValue">0.00</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右区：位移曲线 + 能量曲线 + 控制台（参数调节+派生信息） -->
+        <div class="right-panel">
+            <div class="canvas-card">
+                <canvas id="plotCanvas" width="880" height="320" style="width:100%; height:auto; background:#fefaf0;"></canvas>
+                <div style="text-align:center; font-size:0.7rem;">📈 位移-时间曲线 (带坐标刻度) | 最近5秒窗口</div>
+            </div>
+            <div class="canvas-card">
+                <canvas id="energyCanvas" width="880" height="200" style="width:100%; height:auto; background:#fefaf5;"></canvas>
+                <div style="text-align:center; font-size:0.7rem; display:flex; justify-content:space-between; padding:0 15px;">
+                    <span>⚡ 能量演化曲线 (同时间轴)</span>
+                    <div class="legend"><span style="background:#ff3b6f;"></span> 动能 &nbsp;<span style="background:#3eff6f;"></span> 势能 &nbsp;<span style="background:#3b9eff;"></span> 总能量</div>
+                </div>
+            </div>
+            <div class="control-console">
+                <div class="equation-box" id="equationDisplay">📐 运动方程: x(t) = 1.00·sin(2.00·t + 0.00)</div>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin: 8px 0;">
+                    <label style="display: flex; gap: 8px; align-items: center;"><input type="checkbox" id="dampingToggle"> 🔮 欠阻尼模式</label>
+                    <label style="display: flex; gap: 8px; align-items: center;"><input type="checkbox" id="envelopeToggle"> 📉 包络线 (阻尼)</label>
+                    <div><button id="presetBtn" style="padding:0.2rem 1rem;">📚 典型值 (ω₀=π, β=0.2)</button></div>
+                </div>
+                <div class="param-row"><label>🎚️ 振幅 A [0.3~2.2]</label><input type="range" id="A_slider" min="0.3" max="2.2" step="0.01" value="1.2"><span id="A_val" class="param-value">1.20</span></div>
+                <div class="param-row"><label>🌀 角频率 ω₀ [0.8~4.5]</label><input type="range" id="omega0_slider" min="0.8" max="4.5" step="0.01" value="2.5"><span id="omega0_val" class="param-value">2.50</span></div>
+                <div class="param-row"><label>📐 初相位 φ [0~2π]</label><input type="range" id="phi_slider" min="0" max="6.283" step="0.05" value="0"><span id="phi_val" class="param-value">0.00</span></div>
+                <div class="param-row"><label>💧 阻尼系数 β [0.1~1.2]</label><input type="range" id="beta_slider" min="0.1" max="1.2" step="0.01" value="0.35" disabled><span id="beta_val" class="param-value">0.35</span><span id="betaWarn" class="warning"></span></div>
+                
+                <!-- 新增派生参数信息栏，填补空白并增加教学知识 -->
+                <div class="derived-info" id="derivedInfo">
+                    <div><span class="info-label">⏱️ 周期 T₀ = </span><span id="T0_val">—</span> s</div>
+                    <div><span class="info-label">📊 频率 f = </span><span id="freq_val">—</span> Hz</div>
+                    <div><span class="info-label">🌀 阻尼周期 T_d = </span><span id="Td_val">—</span> s</div>
+                    <div><span class="info-label">🔧 品质因数 Q = </span><span id="Q_val">—</span></div>
+                    <div><span class="info-label">⚡ 恢复力 F = -kx = </span><span id="force_val">—</span> N</div>
+                    <div><span class="info-label">🏔️ 最大速度 v_max ≈ </span><span id="vmax_val">—</span> m/s</div>
+                </div>
+                
+                <div style="margin-top: 6px; font-size:11px; display: flex; justify-content: space-between;">
+                    <span>🌀 ω_d = <span id="omega_d_display">---</span> rad/s</span>
+                    <span>⏱️ 时间 t = <span id="timeValue">0.00</span> s</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ----- DOM 元素 -----
+        const animCanvas = document.getElementById('animCanvas');
+        const ctxAnim = animCanvas.getContext('2d');
+        const plotCanvas = document.getElementById('plotCanvas');
+        const ctxPlot = plotCanvas.getContext('2d');
+        const energyCanvas = document.getElementById('energyCanvas');
+        const ctxEnergy = energyCanvas.getContext('2d');
+        
+        // 参数范围扩大
+        let A = 1.2, omega0 = 2.5, phi = 0.0, beta = 0.35;
+        let dampingMode = false;
+        let showEnvelope = false;
+        let paused = false;
+        let simTime = 0.0;
+        let dataPoints = [];       // {t, x}
+        let energyPoints = [];     // {t, Ek, Ep, Etotal}
+        
+        let lastTimestamp = null;
+        
+        // UI绑定
+        const dampingToggle = document.getElementById('dampingToggle');
+        const envelopeToggle = document.getElementById('envelopeToggle');
+        const A_slider = document.getElementById('A_slider');
+        const omega0_slider = document.getElementById('omega0_slider');
+        const phi_slider = document.getElementById('phi_slider');
+        const beta_slider = document.getElementById('beta_slider');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const presetBtn = document.getElementById('presetBtn');
+        
+        const A_val = document.getElementById('A_val');
+        const omega0_val = document.getElementById('omega0_val');
+        const phi_val = document.getElementById('phi_val');
+        const beta_val = document.getElementById('beta_val');
+        const betaWarn = document.getElementById('betaWarn');
+        const omega_d_display = document.getElementById('omega_d_display');
+        const equationDisplay = document.getElementById('equationDisplay');
+        const currentXDisplay = document.getElementById('currentXDisplay');
+        const currentVDisplay = document.getElementById('currentVDisplay');
+        const currentADisplay = document.getElementById('currentADisplay');
+        const ekValue = document.getElementById('ekValue');
+        const epValue = document.getElementById('epValue');
+        const etotValue = document.getElementById('etotValue');
+        const zetaValue = document.getElementById('zetaValue');
+        const timeValueSpan = document.getElementById('timeValue');
+        
+        // 派生参数元素
+        const T0_val = document.getElementById('T0_val');
+        const freq_val = document.getElementById('freq_val');
+        const Td_val = document.getElementById('Td_val');
+        const Q_val = document.getElementById('Q_val');
+        const force_val = document.getElementById('force_val');
+        const vmax_val = document.getElementById('vmax_val');
+        
+        function getOmegaD() {
+            if(!dampingMode) return omega0;
+            if(beta >= omega0) return 0;
+            return Math.sqrt(omega0*omega0 - beta*beta);
+        }
+        
+        function getDisplacement(t) {
+            const wd = getOmegaD();
+            if(!dampingMode) return A * Math.sin(omega0 * t + phi);
+            if(beta >= omega0) return A * Math.sin(omega0 * t + phi);
+            return A * Math.exp(-beta * t) * Math.sin(wd * t + phi);
+        }
+        
+        function getVelocity(t) {
+            if(!dampingMode) return A * omega0 * Math.cos(omega0 * t + phi);
+            if(beta >= omega0) return A * omega0 * Math.cos(omega0 * t + phi);
+            const wd = getOmegaD();
+            const expF = A * Math.exp(-beta * t);
+            const sinT = Math.sin(wd * t + phi);
+            const cosT = Math.cos(wd * t + phi);
+            return expF * ( -beta * sinT + wd * cosT );
+        }
+        
+        function getAcceleration(t) {
+            if(!dampingMode) return -A * omega0 * omega0 * Math.sin(omega0 * t + phi);
+            if(beta >= omega0) return -A * omega0 * omega0 * Math.sin(omega0 * t + phi);
+            const wd = getOmegaD();
+            const expF = A * Math.exp(-beta * t);
+            const sinT = Math.sin(wd * t + phi);
+            const cosT = Math.cos(wd * t + phi);
+            return expF * ( (beta*beta - wd*wd) * sinT - 2*beta*wd * cosT );
+        }
+        
+        function getEnergy(t){
+            const x = getDisplacement(t);
+            const v = getVelocity(t);
+            const k = omega0 * omega0;
+            const Ek = 0.5 * v * v;
+            const Ep = 0.5 * k * x * x;
+            return {Ek, Ep, Etotal: Ek+Ep};
+        }
+        
+        // 更新派生参数 (周期、频率、品质因数等)
+        function updateDerivedParams() {
+            const T0 = 2 * Math.PI / omega0;
+            const freq = omega0 / (2 * Math.PI);
+            T0_val.innerText = T0.toFixed(3);
+            freq_val.innerText = freq.toFixed(3);
+            if(dampingMode && beta < omega0) {
+                const wd = getOmegaD();
+                const Td = 2 * Math.PI / wd;
+                Td_val.innerText = Td.toFixed(3);
+                const Q = omega0 / (2 * beta);
+                Q_val.innerText = Q.toFixed(2);
+            } else {
+                Td_val.innerText = "—";
+                Q_val.innerText = "—";
+            }
+            // 实时恢复力  F = -k*x
+            const x_now = getDisplacement(simTime);
+            const k = omega0 * omega0;
+            const F_recovery = -k * x_now;
+            force_val.innerText = F_recovery.toFixed(3) + " N";
+            // 最大速度 (无阻尼时理论 v_max = A*ω₀; 阻尼时近似初始最大速度)
+            const vmax_theory = dampingMode ? (A * omega0) : (A * omega0);
+            vmax_val.innerText = vmax_theory.toFixed(3);
+        }
+        
+        function updateEnergyUI(t){
+            const {Ek, Ep, Etotal} = getEnergy(t);
+            ekValue.innerText = Ek.toFixed(4);
+            epValue.innerText = Ep.toFixed(4);
+            etotValue.innerText = Etotal.toFixed(4);
+            const zeta = dampingMode ? (beta/omega0) : 0;
+            zetaValue.innerText = zeta.toFixed(3);
+            const x = getDisplacement(t);
+            const v = getVelocity(t);
+            currentXDisplay.innerText = x.toFixed(4);
+            currentVDisplay.innerText = v.toFixed(4);
+            currentADisplay.innerText = getAcceleration(t).toFixed(4);
+            timeValueSpan.innerText = t.toFixed(3);
+            updateDerivedParams();
+        }
+        
+        function addDataPoint(t){
+            if(paused) return;
+            const x = getDisplacement(t);
+            dataPoints.push({t, x});
+            const limit = t - 5.0;
+            while(dataPoints.length && dataPoints[0].t < limit) dataPoints.shift();
+            if(dataPoints.length > 2500) dataPoints = dataPoints.slice(-1800);
+            
+            const {Ek, Ep, Etotal} = getEnergy(t);
+            energyPoints.push({t, Ek, Ep, Etotal});
+            while(energyPoints.length && energyPoints[0].t < limit) energyPoints.shift();
+            if(energyPoints.length > 2500) energyPoints = energyPoints.slice(-1800);
+        }
+        
+        function resetSimulation(){
+            simTime = 0.0;
+            dataPoints = [];
+            energyPoints = [];
+            addDataPoint(0);
+            lastTimestamp = null;
+            drawAll();
+        }
+        
+        function enforceBetaLimit(){
+            if(dampingMode && beta >= omega0){
+                let newBeta = Math.max(0.08, omega0 - 0.08);
+                newBeta = parseFloat(newBeta.toFixed(3));
+                if(newBeta !== beta){
+                    beta = newBeta;
+                    beta_slider.value = beta;
+                    beta_val.innerText = beta.toFixed(3);
+                    betaWarn.innerText = "⚠️ β≥ω₀ → 已限制为 "+beta.toFixed(3);
+                    setTimeout(()=>{ if(betaWarn) betaWarn.innerText = ""; }, 2000);
+                }
+            } else betaWarn.innerText = "";
+            if(beta > 1.2) beta = 1.2;
+            beta_slider.value = beta;
+            beta_val.innerText = beta.toFixed(3);
+        }
+        
+        function paramChanged(){
+            A = parseFloat(A_slider.value);
+            omega0 = parseFloat(omega0_slider.value);
+            phi = parseFloat(phi_slider.value);
+            beta = parseFloat(beta_slider.value);
+            A_val.innerText = A.toFixed(3);
+            omega0_val.innerText = omega0.toFixed(3);
+            phi_val.innerText = phi.toFixed(3);
+            beta_val.innerText = beta.toFixed(3);
+            enforceBetaLimit();
+            simTime = 0;
+            dataPoints = [];
+            energyPoints = [];
+            addDataPoint(0);
+            lastTimestamp = null;
+            drawAll();
+            updateEquationText();
+            updateDerivedParams();
+        }
+        
+        function presetValues(){
+            A_slider.value = "1.2";
+            omega0_slider.value = "3.1416";
+            phi_slider.value = "0";
+            beta_slider.value = "0.2";
+            dampingToggle.checked = true;
+            dampingMode = true;
+            beta_slider.disabled = false;
+            envelopeToggle.disabled = false;
+            showEnvelope = true;
+            envelopeToggle.checked = true;
+            paramChanged();
+        }
+        
+        function toggleDampingMode(){
+            dampingMode = dampingToggle.checked;
+            beta_slider.disabled = !dampingMode;
+            envelopeToggle.disabled = !dampingMode;
+            if(!dampingMode) showEnvelope = false;
+            envelopeToggle.checked = showEnvelope;
+            enforceBetaLimit();
+            paramChanged();
+        }
+        function toggleEnvelope(){ showEnvelope = envelopeToggle.checked; if(!dampingMode) showEnvelope=false; drawPlot(); }
+        function updateEquationText(){
+            const wd = getOmegaD();
+            if(!dampingMode){
+                equationDisplay.innerHTML = `✨ 无阻尼简谐运动:  x(t) = ${A.toFixed(2)}·sin(${omega0.toFixed(2)}·t + ${phi.toFixed(2)})`;
+                omega_d_display.innerText = '—';
+            } else {
+                let wd_str = (beta>=omega0) ? '临界' : wd.toFixed(3);
+                omega_d_display.innerText = (beta>=omega0)? '无效' : wd_str;
+                equationDisplay.innerHTML = `🌀 欠阻尼振动:  x(t) = ${A.toFixed(2)}·e^{-${beta.toFixed(2)}·t}·sin(${wd_str}·t + ${phi.toFixed(2)})  |  ω_d = √(ω₀²-β²)`;
+            }
+        }
+        
+        // ========== 核心绘图：弹簧振子 + 显眼墙壁 ==========
+        function drawSpring(ctx, x0, x1, y){
+            if(x0 >= x1) return;
+            const seg = 34;
+            const step = (x1 - x0)/seg;
+            ctx.beginPath();
+            ctx.moveTo(x0, y);
+            let up = true;
+            for(let i=1;i<=seg;i++){
+                let x = x0 + i*step;
+                let yoff = up ? -10 : 10;
+                ctx.lineTo(x, y+yoff);
+                up = !up;
+            }
+            ctx.lineTo(x1, y);
+            ctx.strokeStyle = "#3effc2";
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = "#0ff";
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawAnimation(){
+            if(!ctxAnim) return;
+            const w = 560, h = 330;
+            ctxAnim.clearRect(0,0,w,h);
+            ctxAnim.fillStyle = "#fefaf7";
+            ctxAnim.fillRect(0,0,w,h);
+            ctxAnim.strokeStyle = "#bbd4f0";
+            ctxAnim.lineWidth = 0.6;
+            for(let i=0;i<w;i+=30){ ctxAnim.beginPath(); ctxAnim.moveTo(i,0); ctxAnim.lineTo(i,h); ctxAnim.stroke(); }
+            for(let i=0;i<h;i+=30){ ctxAnim.beginPath(); ctxAnim.moveTo(0,i); ctxAnim.lineTo(w,i); ctxAnim.stroke(); }
+            
+            const centerX = w/2;
+            const baseY = h/2 + 12;
+            
+            const wallX = 50;
+            ctxAnim.fillStyle = "#c09a6b";
+            ctxAnim.shadowBlur = 0;
+            ctxAnim.fillRect(wallX-12, baseY-35, 14, 70);
+            ctxAnim.fillStyle = "#a06e42";
+            ctxAnim.fillRect(wallX-10, baseY-32, 10, 64);
+            ctxAnim.fillStyle = "#e0b07a";
+            ctxAnim.fillRect(wallX-8, baseY-30, 6, 60);
+            ctxAnim.beginPath();
+            ctxAnim.moveTo(wallX-12, baseY-35); ctxAnim.lineTo(wallX-5, baseY-45); ctxAnim.lineTo(wallX+2, baseY-35); ctxAnim.fillStyle = "#b87a3a";
+            ctxAnim.fill();
+            
+            ctxAnim.beginPath();
+            ctxAnim.setLineDash([8, 8]);
+            ctxAnim.moveTo(centerX, 30);
+            ctxAnim.lineTo(centerX, h-30);
+            ctxAnim.strokeStyle = "#ffaa33";
+            ctxAnim.lineWidth = 2.2;
+            ctxAnim.stroke();
+            ctxAnim.setLineDash([]);
+            
+            ctxAnim.beginPath();
+            ctxAnim.moveTo(40, baseY);
+            ctxAnim.lineTo(w-40, baseY);
+            ctxAnim.lineWidth = 4;
+            ctxAnim.strokeStyle = "#ffaa66";
+            ctxAnim.shadowBlur = 0;
+            ctxAnim.stroke();
+            ctxAnim.beginPath();
+            ctxAnim.moveTo(40, baseY-3);
+            ctxAnim.lineTo(w-40, baseY-3);
+            ctxAnim.lineWidth = 2;
+            ctxAnim.strokeStyle = "#ffcc88";
+            ctxAnim.stroke();
+            
+            const x_val = getDisplacement(simTime);
+            const objX = centerX + x_val * 95;
+            const springStart = wallX + 8;
+            const springEnd = Math.min(w-35, Math.max(springStart+5, objX));
+            drawSpring(ctxAnim, springStart, springEnd, baseY);
+            
+            ctxAnim.shadowBlur = 12;
+            ctxAnim.shadowColor = "#ffb347";
+            ctxAnim.beginPath();
+            ctxAnim.arc(objX, baseY, 17, 0, 2*Math.PI);
+            ctxAnim.fillStyle = "#ffaa55";
+            ctxAnim.fill();
+            ctxAnim.beginPath();
+            ctxAnim.arc(objX-4, baseY-5, 5, 0, 2*Math.PI);
+            ctxAnim.fillStyle = "#ffffff";
+            ctxAnim.fill();
+            ctxAnim.beginPath();
+            ctxAnim.arc(objX+5, baseY-4, 4, 0, 2*Math.PI);
+            ctxAnim.fillStyle = "#fff9e0";
+            ctxAnim.fill();
+            ctxAnim.beginPath();
+            ctxAnim.arc(objX, baseY, 7, 0, 2*Math.PI);
+            ctxAnim.fillStyle = "#cc7733";
+            ctxAnim.fill();
+            ctxAnim.shadowBlur = 0;
+            
+            ctxAnim.fillStyle = "#ff7700";
+            ctxAnim.font = "bold 11px monospace";
+            ctxAnim.fillText("⚖️ 平衡位置", centerX-55, baseY-12);
+            ctxAnim.fillStyle = "#ff8833";
+            ctxAnim.fillText("🧱 固定墙", wallX-30, baseY-15);
+            ctxAnim.fillStyle = "#1f6390";
+            ctxAnim.font = "bold 13px monospace";
+            ctxAnim.fillText(`x = ${x_val.toFixed(3)} m`, objX-28, baseY-24);
+        }
+        
+        // 位移曲线 (带清晰刻度)
+        function drawPlot(){
+            const w = 880, h = 320;
+            ctxPlot.clearRect(0,0,w,h);
+            ctxPlot.fillStyle = "#fefaf0";
+            ctxPlot.fillRect(0,0,w,h);
+            const ml = 68, mr = 32, mt = 28, mb = 42;
+            const pw = w - ml - mr, ph = h - mt - mb;
+            const t_now = simTime;
+            const t_min = Math.max(0, t_now - 5.0);
+            const t_max = t_min + 5.0;
+            const xMin = -2.2, xMax = 2.2;
+            const px = (t) => ml + (t - t_min)/5.0 * pw;
+            const py = (x) => mt + (1 - (x - xMin)/(xMax - xMin)) * ph;
+            
+            ctxPlot.strokeStyle = "#bbccdd";
+            ctxPlot.lineWidth = 0.5;
+            for(let y = -2; y<=2; y+=1){
+                let yy = py(y);
+                ctxPlot.beginPath(); ctxPlot.moveTo(ml, yy); ctxPlot.lineTo(w-mr, yy); ctxPlot.stroke();
+            }
+            for(let t = Math.ceil(t_min); t<=Math.floor(t_max); t++){
+                let xx = px(t);
+                ctxPlot.beginPath(); ctxPlot.moveTo(xx, mt); ctxPlot.lineTo(xx, h-mb); ctxPlot.stroke();
+            }
+            ctxPlot.beginPath(); ctxPlot.lineWidth = 1.8; ctxPlot.strokeStyle = "#2b6b8f";
+            let y0 = py(0); ctxPlot.moveTo(ml, y0); ctxPlot.lineTo(w-mr, y0);
+            let x0 = px(t_min); ctxPlot.moveTo(x0, mt); ctxPlot.lineTo(x0, h-mb); ctxPlot.stroke();
+            ctxPlot.fillStyle = "#1a4c6e"; ctxPlot.font = "11px monospace";
+            ctxPlot.fillText("时间 (s)", w-50, h-12);
+            ctxPlot.save(); ctxPlot.translate(18, h/2); ctxPlot.rotate(-Math.PI/2); ctxPlot.fillText("位移 x", -8, 5); ctxPlot.restore();
+            for(let y = -2; y<=2; y+=1){ let yy = py(y); ctxPlot.fillText(y, ml-30, yy+3); }
+            for(let t = Math.ceil(t_min); t<=Math.floor(t_max); t++){ let xx = px(t); ctxPlot.fillText(t, xx-5, y0+18); }
+            if(t_min>0) ctxPlot.fillText(t_min.toFixed(1), px(t_min)-10, y0+18);
+            ctxPlot.fillText(t_max.toFixed(1), px(t_max)-10, y0+18);
+            
+            if(dataPoints.length>1){
+                ctxPlot.beginPath(); ctxPlot.strokeStyle = "#f06292"; ctxPlot.lineWidth=2.5;
+                let first=true;
+                for(let p of dataPoints){
+                    if(p.t<t_min || p.t>t_max) continue;
+                    let xx = px(p.t), yy = py(p.x);
+                    if(xx<ml || xx>w-mr) continue;
+                    if(first){ ctxPlot.moveTo(xx,yy); first=false; } else ctxPlot.lineTo(xx,yy);
+                }
+                ctxPlot.stroke();
+            }
+            if(dampingMode && showEnvelope && beta<omega0){
+                ctxPlot.beginPath(); ctxPlot.setLineDash([6,7]); ctxPlot.strokeStyle="#ff44aa"; ctxPlot.lineWidth=1.8;
+                let upFirst=true, lowFirst=true;
+                for(let i=0;i<=200;i++){
+                    let t = t_min + i/200*5;
+                    let env = A * Math.exp(-beta*t);
+                    let xx = px(t), yup = py(env), ylow = py(-env);
+                    if(xx>=ml && xx<=w-mr){
+                        if(upFirst){ ctxPlot.beginPath(); ctxPlot.moveTo(xx,yup); upFirst=false; } else ctxPlot.lineTo(xx,yup);
+                    }
+                }
+                ctxPlot.stroke();
+                for(let i=0;i<=200;i++){
+                    let t = t_min + i/200*5;
+                    let env = A * Math.exp(-beta*t);
+                    let xx = px(t), ylow = py(-env);
+                    if(xx>=ml && xx<=w-mr){
+                        if(lowFirst){ ctxPlot.beginPath(); ctxPlot.moveTo(xx,ylow); lowFirst=false; } else ctxPlot.lineTo(xx,ylow);
+                    }
+                }
+                ctxPlot.stroke();
+                ctxPlot.setLineDash([]);
+            }
+            ctxPlot.fillStyle="#0f5f7a"; ctxPlot.font="bold 12px monospace"; ctxPlot.fillText("位移-时间曲线", w-170, 22);
+        }
+        
+        // 能量曲线
+        function drawEnergyCurve(){
+            const w = 880, h = 200;
+            ctxEnergy.clearRect(0,0,w,h);
+            ctxEnergy.fillStyle = "#fefaf5";
+            ctxEnergy.fillRect(0,0,w,h);
+            const ml = 68, mr = 32, mt = 22, mb = 32;
+            const pw = w - ml - mr, ph = h - mt - mb;
+            const t_now = simTime;
+            const t_min = Math.max(0, t_now - 5.0);
+            const t_max = t_min + 5.0;
+            let maxE = 0.01;
+            for(let p of energyPoints){
+                if(p.t>=t_min && p.t<=t_max){
+                    maxE = Math.max(maxE, p.Ek, p.Ep, p.Etotal);
+                }
+            }
+            maxE = Math.max(maxE, 0.5 * (A*omega0)*(A*omega0) * 1.2);
+            maxE = Math.ceil(maxE * 1.05);
+            const px = (t) => ml + (t - t_min)/5.0 * pw;
+            const py = (E) => mt + (1 - E/maxE) * ph;
+            ctxEnergy.strokeStyle = "#bbddcc";
+            ctxEnergy.lineWidth = 0.5;
+            for(let e=0; e<=maxE; e+=maxE/4){
+                let yy = py(e);
+                ctxEnergy.beginPath(); ctxEnergy.moveTo(ml, yy); ctxEnergy.lineTo(w-mr, yy); ctxEnergy.stroke();
+                ctxEnergy.fillStyle = "#2f6f5e"; ctxEnergy.fillText(e.toFixed(1), ml-30, yy+3);
+            }
+            for(let t = Math.ceil(t_min); t<=Math.floor(t_max); t++){
+                let xx = px(t);
+                ctxEnergy.beginPath(); ctxEnergy.moveTo(xx, mt); ctxEnergy.lineTo(xx, h-mb); ctxEnergy.stroke();
+            }
+            ctxEnergy.beginPath(); ctxEnergy.lineWidth=1.5; ctxEnergy.strokeStyle="#3c8585";
+            ctxEnergy.moveTo(ml, mt); ctxEnergy.lineTo(ml, h-mb); ctxEnergy.stroke();
+            ctxEnergy.moveTo(ml, py(0)); ctxEnergy.lineTo(w-mr, py(0)); ctxEnergy.stroke();
+            ctxEnergy.fillStyle = "#1a5a60"; ctxEnergy.fillText("时间(s)", w-55, h-8);
+            ctxEnergy.save(); ctxEnergy.translate(15, h/2); ctxEnergy.rotate(-Math.PI/2); ctxEnergy.fillText("能量 (J)", -8, 6); ctxEnergy.restore();
+            
+            const drawLine = (color, getValue) => {
+                let pts = energyPoints.filter(p => p.t>=t_min && p.t<=t_max);
+                if(pts.length<2) return;
+                ctxEnergy.beginPath(); ctxEnergy.strokeStyle = color; ctxEnergy.lineWidth = 2.2;
+                let first = true;
+                for(let p of pts){
+                    let xx = px(p.t);
+                    let yy = py(getValue(p));
+                    if(xx<ml || xx>w-mr) continue;
+                    if(first){ ctxEnergy.moveTo(xx,yy); first=false; } else ctxEnergy.lineTo(xx,yy);
+                }
+                ctxEnergy.stroke();
+            };
+            drawLine("#ff3b6f", (p)=>p.Ek);
+            drawLine("#3eff6f", (p)=>p.Ep);
+            drawLine("#3b9eff", (p)=>p.Etotal);
+            ctxEnergy.fillStyle = "#ff3b6f"; ctxEnergy.fillRect(w-110, 15, 14, 3);
+            ctxEnergy.fillStyle = "#3eff6f"; ctxEnergy.fillRect(w-110, 28, 14, 3);
+            ctxEnergy.fillStyle = "#3b9eff"; ctxEnergy.fillRect(w-110, 41, 14, 3);
+            ctxEnergy.fillStyle = "#ccf"; ctxEnergy.font = "9px monospace";
+            ctxEnergy.fillText("动能", w-92, 19); ctxEnergy.fillText("势能", w-92, 32); ctxEnergy.fillText("总能量", w-92, 45);
+            ctxEnergy.fillStyle = "#124f5e"; ctxEnergy.fillText("能量演化 (最近5s)", w-210, 18);
+        }
+        
+        function drawAll(){
+            drawAnimation();
+            drawPlot();
+            drawEnergyCurve();
+            updateEnergyUI(simTime);
+            updateEquationText();
+            updateDerivedParams();
+        }
+        
+        let animFrame;
+        function animate(nowMs){
+            if(!paused){
+                if(lastTimestamp === null){
+                    lastTimestamp = nowMs;
+                    animFrame = requestAnimationFrame(animate);
+                    return;
+                }
+                let dt = Math.min(0.033, (nowMs - lastTimestamp)/1000);
+                if(dt > 0.001){
+                    simTime += dt;
+                    addDataPoint(simTime);
+                    drawAll();
+                }
+                lastTimestamp = nowMs;
+            } else {
+                drawAll();
+            }
+            animFrame = requestAnimationFrame(animate);
+        }
+        
+        function bindEvents(){
+            dampingToggle.addEventListener('change', toggleDampingMode);
+            envelopeToggle.addEventListener('change', toggleEnvelope);
+            A_slider.addEventListener('input', paramChanged);
+            omega0_slider.addEventListener('input', paramChanged);
+            phi_slider.addEventListener('input', paramChanged);
+            beta_slider.addEventListener('input', paramChanged);
+            pauseBtn.addEventListener('click', ()=>{ paused = !paused; pauseBtn.innerText = paused ? "▶️ 启动" : "⏸️ 暂停"; if(!paused) lastTimestamp = null; });
+            resetBtn.addEventListener('click', ()=>{ resetSimulation(); if(paused) paused=false, pauseBtn.innerText="⏸️ 暂停"; drawAll(); });
+            presetBtn.addEventListener('click', presetValues);
+        }
+        
+        function init(){
+            bindEvents();
+            dampingToggle.checked = false;
+            envelopeToggle.checked = false;
+            envelopeToggle.disabled = true;
+            beta_slider.disabled = true;
+            A_slider.value = "1.2"; omega0_slider.value = "2.5"; phi_slider.value="0"; beta_slider.value="0.35";
+            paramChanged();
+            resetSimulation();
+            animate(0);
+        }
+        init();
+    })();
+</script>
+</body>
+</html>

@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>弹簧振子物理演示模型</title>
+<style>
+  /* ========== 全局变量与基础样式 ========== */
+  :root {
+    --bg: #0d1117;
+    --bg-panel: #161b22;
+    --bg-elevated: #1c2128;
+    --border: #30363d;
+    --border-light: #21262d;
+    --text: #c9d1d9;
+    --text-muted: #8b949e;
+    --text-dim: #6e7681;
+    --accent-green: #3fb950;
+    --accent-blue: #58a6ff;
+    --accent-orange: #d29922;
+    --accent-red: #f85149;
+    --accent-purple: #bc8cff;
+    --shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;
+  }
+
+  /* ========== 整体布局 ========== */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  header {
+    padding: 12px 20px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.3px;
+  }
+
+  header h1 .sub {
+    color: var(--text-muted);
+    font-weight: 400;
+    font-size: 13px;
+    margin-left: 8px;
+  }
+
+  .mode-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+  }
+
+  .mode-tab {
+    padding: 5px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+
+  .mode-tab:hover { color: var(--text); }
+
+  .mode-tab.active {
+    background: var(--bg-elevated);
+    color: var(--accent-green);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+
+  /* ========== 主区域 Grid 布局 ========== */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    grid-template-rows: 45% 1fr;
+    grid-template-areas:
+      "spring controls"
+      "plot   controls";
+    gap: 12px;
+    padding: 12px;
+    min-height: 0;
+  }
+
+  .panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .panel-header {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .panel-body {
+    flex: 1;
+    position: relative;
+    min-height: 0;
+  }
+
+  .spring-panel { grid-area: spring; }
+  .plot-panel { grid-area: plot; }
+  .controls-panel { grid-area: controls; }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ========== 控制面板 ========== */
+  .controls-panel .panel-body {
+    overflow-y: auto;
+    padding: 14px;
+  }
+
+  .controls-panel .panel-body::-webkit-scrollbar { width: 6px; }
+  .controls-panel .panel-body::-webkit-scrollbar-track { background: transparent; }
+  .controls-panel .panel-body::-webkit-scrollbar-thumb {
+    background: var(--border); border-radius: 3px;
+  }
+
+  .section {
+    margin-bottom: 18px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .control-row {
+    margin-bottom: 12px;
+  }
+
+  .control-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+  }
+
+  .control-label .name {
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .control-label .name .sym {
+    color: var(--text-muted);
+    font-style: italic;
+    margin-left: 4px;
+    font-size: 12px;
+  }
+
+  .control-label .value {
+    font-size: 12px;
+    color: var(--accent-green);
+    font-family: "SF Mono", "Consolas", "Menlo", monospace;
+    font-weight: 500;
+  }
+
+  .control-label .unit {
+    color: var(--text-dim);
+    font-size: 11px;
+    margin-left: 2px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--bg-elevated);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent-green);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid var(--bg-panel);
+    box-shadow: 0 0 0 1px var(--accent-green);
+    transition: transform 0.1s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: var(--accent-green);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid var(--bg-panel);
+  }
+
+  input[type="range"]:disabled::-webkit-slider-thumb {
+    background: var(--text-dim);
+    box-shadow: 0 0 0 1px var(--text-dim);
+    cursor: not-allowed;
+  }
+
+  input[type="range"]:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ========== 按钮 ========== */
+  .button-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .btn {
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .btn:hover {
+    background: #22262e;
+    border-color: var(--text-muted);
+  }
+
+  .btn-primary {
+    background: var(--accent-green);
+    color: #0d1117;
+    border-color: var(--accent-green);
+    font-weight: 600;
+  }
+
+  .btn-primary:hover {
+    background: #46c757;
+    border-color: #46c757;
+  }
+
+  .btn-primary.paused {
+    background: var(--accent-orange);
+    border-color: var(--accent-orange);
+  }
+
+  .btn-primary.paused:hover {
+    background: #e3a823;
+  }
+
+  /* ========== 数据显示 ========== */
+  .data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .data-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+
+  .data-card .label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+
+  .data-card .value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    font-family: "SF Mono", "Consolas", "Menlo", monospace;
+  }
+
+  .data-card .value .unit {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-weight: 400;
+    margin-left: 2px;
+  }
+
+  .data-card.highlight .value { color: var(--accent-blue); }
+  .data-card.warn .value { color: var(--accent-orange); }
+
+  /* ========== 能量条 ========== */
+  .energy-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .energy-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .energy-bar .e-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    width: 50px;
+    flex-shrink: 0;
+  }
+
+  .energy-bar .e-track {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-elevated);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+  }
+
+  .energy-bar .e-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.05s linear;
+  }
+
+  .energy-bar .e-value {
+    font-size: 11px;
+    color: var(--text);
+    font-family: "SF Mono", monospace;
+    width: 56px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .e-fill.ke { background: linear-gradient(90deg, #1f6feb, #58a6ff); }
+  .e-fill.pe { background: linear-gradient(90deg, #238636, #3fb950); }
+  .e-fill.total { background: linear-gradient(90deg, #d29922, #f0c674); }
+
+  /* ========== 图例 ========== */
+  .legend {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 2px;
+    border-radius: 1px;
+  }
+
+  /* ========== 提示信息 ========== */
+  .hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    padding: 8px 10px;
+    background: var(--bg-elevated);
+    border-radius: 6px;
+    border-left: 2px solid var(--accent-blue);
+  }
+
+  .hint b { color: var(--text-muted); }
+
+  /* ========== 响应式 ========== */
+  @media (max-width: 960px) {
+    main {
+      grid-template-columns: 1fr;
+      grid-template-rows: 280px 220px auto;
+      grid-template-areas:
+        "spring"
+        "plot"
+        "controls";
+      height: auto;
+      min-height: calc(100vh - 56px);
+    }
+    html, body { overflow: auto; }
+    .controls-panel .panel-body { overflow-y: visible; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ========== 顶部标题与模式切换 ========== -->
+  <header>
+    <h1>
+      弹簧振子物理演示模型
+      <span class="sub">Spring Oscillator · Velocity Verlet Integration</span>
+    </h1>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="ideal">理想简谐</button>
+      <button class="mode-tab" data-mode="damped">阻尼振动</button>
+      <button class="mode-tab" data-mode="forced">受迫振动</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ========== 弹簧可视化区 ========== -->
+    <section class="panel spring-panel">
+      <div class="panel-header">
+        <span class="panel-title">弹簧振子可视化</span>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-dot" style="background:#3fb950"></span>弹簧</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#58a6ff"></span>振子</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#d29922"></span>速度</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <canvas id="springCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- ========== x(t) 曲线区 ========== -->
+    <section class="panel plot-panel">
+      <div class="panel-header">
+        <span class="panel-title" id="plotTitle">位移 - 时间曲线 x(t)</span>
+        <div class="mode-tabs" style="padding:2px;">
+          <button class="mode-tab active" data-plot="x">x(t)</button>
+          <button class="mode-tab" data-plot="v">v(t)</button>
+          <button class="mode-tab" data-plot="e">E(t)</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <canvas id="plotCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- ========== 控制面板 ========== -->
+    <aside class="panel controls-panel">
+      <div class="panel-header">
+        <span class="panel-title">参数控制 · 实时数据</span>
+      </div>
+      <div class="panel-body">
+
+        <!-- 系统参数 -->
+        <div class="section">
+          <div class="section-title">系统参数</div>
+
+          <div class="control-row">
+            <div class="control-label">
+              <span class="name">质量<span class="sym">m</span></span>
+              <span><span class="value" id="mVal">1.00</span><span class="unit"> kg</span></span>
+            </div>
+            <input type="range" id="mSlider" min="0.1" max="5" step="0.1" value="1">
+          </div>
+
+          <div class="control-row">
+            <div class="control-label">
+              <span class="name">劲度系数<span class="sym">k</span></span>
+              <span><span class="value" id="kVal">10.0</span><span class="unit"> N/m</span></span>
+            </div>
+            <input type="range" id="kSlider" min="1" max="100" step="0.5" value="10">
+          </div>
+
+          <div class="control-row">
+            <div class="control-label">
+              <span class="name">初始位移<span class="sym">x₀</span></span>
+              <span><span class="value" id="x0Val">1.00</span><span class="unit"> m</span></span>
+            </div>
+            <input type="range" id="x0Slider" min="-2" max="2" step="0.05" value="1">
+          </div>
+        </div>
+
+        <!-- 阻尼参数 -->
+        <div class="section" id="dampingSection">
+          <div class="section-title">阻尼参数</div>
+          <div class="control-row">
+            <div class="control-label">
+              <span class="name">阻尼系数<span class="sym">c</span></span>
+              <span><span class="value" id="cVal">0.00</span><span class="unit"> N·s/m</span></span>
+            </div>
+            <input type="range" id="cSlider" min="0" max="10" step="0.05" value="0">
+          </div>
+          <div class="hint" id="dampingHint">
+            <b>阻尼比 ζ = c / (2√(km))</b><br>
+            ζ &lt; 1 欠阻尼 · ζ = 1 临界阻尼 · ζ &gt; 1 过阻尼
+          </div>
+        </div>
+
+        <!-- 受迫力参数 -->
+        <div class="section" id="forcingSection">
+          <div class="section-title">驱动力参数</div>
+          <div class="control-row">
+            <div class="control-label">
+              <span class="name">驱动力幅值<span class="sym">F₀</span></span>
+              <span><span class="value" id="F0Val">0.00</span><span class="unit"> N</span></span>
+            </div>
+            <input type="range" id="F0Slider" min="0" max="20" step="0.1" value="0">
+          </div>
+          <div class="control-row">
+            <div class="control-label">
+              <span class="name">驱动频率<span class="sym">Ω</span></span>
+              <span><span class="value" id="OmegaVal">0.00</span><span class="unit"> rad/s</span></span>
+            </div>
+            <input type="range" id="OmegaSlider" min="0" max="20" step="0.05" value="0">
+          </div>
+          <div class="hint" id="resonanceHint">
+            <b>共振条件:</b> 当 Ω ≈ ω₀ = √(k/m) 时振幅最大<br>
+            <span id="freqRatioText">当前 Ω/ω₀ = —</span>
+          </div>
+        </div>
+
+        <!-- 控制按钮 -->
+        <div class="section">
+          <div class="section-title">运行控制</div>
+          <div class="button-row">
+            <button class="btn btn-primary" id="playBtn">▶ 开始</button>
+            <button class="btn" id="resetBtn">↻ 重置</button>
+          </div>
+        </div>
+
+        <!-- 实时数据 -->
+        <div class="section">
+          <div class="section-title">实时物理量</div>
+          <div class="data-grid">
+            <div class="data-card">
+              <div class="label">角频率 ω₀</div>
+              <div class="value"><span id="omegaVal">3.16</span><span class="unit"> rad/s</span></div>
+            </div>
+            <div class="data-card">
+              <div class="label">周期 T</div>
+              <div class="value"><span id="periodVal">1.99</span><span class="unit"> s</span></div>
+            </div>
+            <div class="data-card">
+              <div class="label">位移 x</div>
+              <div class="value"><span id="xVal">1.000</span><span class="unit"> m</span></div>
+            </div>
+            <div class="data-card">
+              <div class="label">速度 v</div>
+              <div class="value"><span id="vVal">0.000</span><span class="unit"> m/s</span></div>
+            </div>
+            <div class="data-card">
+              <div class="label">加速度 a</div>
+              <div class="value"><span id="aVal">-10.00</span><span class="unit"> m/s²</span></div>
+            </div>
+            <div class="data-card highlight">
+              <div class="label">阻尼比 ζ</div>
+              <div class="value"><span id="zetaVal">0.000</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 能量显示 -->
+        <div class="section">
+          <div class="section-title">能量分布</div>
+          <div class="energy-bars">
+            <div class="energy-bar">
+              <span class="e-label">动能 KE</span>
+              <div class="e-track"><div class="e-fill ke" id="keBar" style="width:0%"></div></div>
+              <span class="e-value" id="keVal">0.00 J</span>
+            </div>
+            <div class="energy-bar">
+              <span class="e-label">势能 PE</span>
+              <div class="e-track"><div class="e-fill pe" id="peBar" style="width:0%"></div></div>
+              <span class="e-value" id="peVal">0.00 J</span>
+            </div>
+            <div class="energy-bar">
+              <span class="e-label">总能 E</span>
+              <div class="e-track"><div class="e-fill total" id="totalBar" style="width:0%"></div></div>
+              <span class="e-value" id="totalVal">0.00 J</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+ * 弹簧振子物理演示模型
+ * 方程: m·ẍ + c·ẋ + k·x = F₀·cos(Ωt)
+ * 积分: Velocity Verlet（带速度依赖力的半步修正）
+ * ============================================================ */
+
+// ========== 物理状态 ==========
+const state = {
+  // 系统参数（SI 单位）
+  m: 1.0,        // 质量 kg
+  k: 10.0,       // 劲度系数 N/m
+  c: 0.0,        // 阻尼系数 N·s/m
+  F0: 0.0,       // 驱动力幅值 N
+  Omega: 0.0,    // 驱动角频率 rad/s
+  x0: 1.0,       // 初始位移 m
+
+  // 动力学变量
+  x: 1.0,        // 当前位移 m
+  v: 0.0,        // 当前速度 m/s
+  a: 0.0,        // 当前加速度 m/s²
+  t: 0.0,        // 时间 s
+
+  // 运行状态
+  mode: 'ideal', // 'ideal' | 'damped' | 'forced'
+  running: false,
+  plotMode: 'x', // 'x' | 'v' | 'e'
+};
+
+// ========== 物理积分参数 ==========
+const PHYSICS_DT = 0.005;    // 物理步长 5ms，每周期约 400 步，Velocity Verlet 已足够精确
+const MAX_FRAME_DT = 0.05;   // 单帧最大物理时间，防止后台切换后大跳
+
+// ========== 数据缓冲 ==========
+// 环形缓冲区：push 和淘汰旧数据均为 O(1)，替代 Array.shift() 的 O(n) 开销
+class RingBuffer {
+  constructor(capacity) {
+    this.capacity = capacity;
+    this.buffer = new Array(capacity);
+    this.head = 0;   // 下一个写入位置
+    this.size = 0;   // 当前元素数
+  }
+  push(item) {
+    this.buffer[this.head] = item;
+    this.head = (this.head + 1) % this.capacity;
+    if (this.size < this.capacity) this.size++;
+  }
+  clear() {
+    this.head = 0;
+    this.size = 0;
+  }
+  last() {
+    if (this.size === 0) return null;
+    return this.buffer[(this.head - 1 + this.capacity) % this.capacity];
+  }
+  [Symbol.iterator]() {
+    const start = this.size < this.capacity ? 0 : this.head;
+    let i = 0;
+    const self = this;
+    return {
+      next() {
+        if (i >= self.size) return { done: true };
+        const idx = (start + i) % self.capacity;
+        i++;
+        return { value: self.buffer[idx], done: false };
+      }
+    };
+  }
+}
+const MAX_PLOT_POINTS = 3000;
+const plotData = new RingBuffer(MAX_PLOT_POINTS);
+let accumulator = 0;         // 固定步长累加器
+let lastFrameTime = 0;
+
+// ========== DOM 引用缓存（避免每帧重复 getElementById） ==========
+const dom = {};
+function cacheDom() {
+  // 数据显示元素
+  dom.omegaVal    = document.getElementById('omegaVal');
+  dom.periodVal   = document.getElementById('periodVal');
+  dom.xVal        = document.getElementById('xVal');
+  dom.vVal        = document.getElementById('vVal');
+  dom.aVal        = document.getElementById('aVal');
+  dom.zetaVal     = document.getElementById('zetaVal');
+  dom.keVal       = document.getElementById('keVal');
+  dom.peVal       = document.getElementById('peVal');
+  dom.totalVal    = document.getElementById('totalVal');
+  dom.keBar       = document.getElementById('keBar');
+  dom.peBar       = document.getElementById('peBar');
+  dom.totalBar    = document.getElementById('totalBar');
+  dom.freqRatioText = document.getElementById('freqRatioText');
+  // 滑块值标签
+  dom.mVal        = document.getElementById('mVal');
+  dom.kVal        = document.getElementById('kVal');
+  dom.cVal        = document.getElementById('cVal');
+  dom.F0Val       = document.getElementById('F0Val');
+  dom.OmegaVal    = document.getElementById('OmegaVal');
+  dom.x0Val       = document.getElementById('x0Val');
+  // 滑块控件
+  dom.mSlider     = document.getElementById('mSlider');
+  dom.kSlider     = document.getElementById('kSlider');
+  dom.cSlider     = document.getElementById('cSlider');
+  dom.F0Slider    = document.getElementById('F0Slider');
+  dom.OmegaSlider  = document.getElementById('OmegaSlider');
+  dom.x0Slider    = document.getElementById('x0Slider');
+  // 区块容器
+  dom.dampingSection  = document.getElementById('dampingSection');
+  dom.forcingSection  = document.getElementById('forcingSection');
+  // 按钮
+  dom.playBtn     = document.getElementById('playBtn');
+  dom.resetBtn    = document.getElementById('resetBtn');
+  dom.plotTitle   = document.getElementById('plotTitle');
+}
+
+// ========== Canvas 与上下文 ==========
+const springCanvas = document.getElementById('springCanvas');
+const plotCanvas = document.getElementById('plotCanvas');
+let springCtx, plotCtx;
+
+// ========== DPI 自适应 ==========
+function setupCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return ctx;
+}
+
+function resizeAll() {
+  springCtx = setupCanvas(springCanvas);
+  plotCtx = setupCanvas(plotCanvas);
+}
+
+/* ============================================================
+ * 物理引擎：Velocity Verlet
+ * 对于含速度依赖阻尼力的情况，采用半步速度修正：
+ *   1. v_half = v + 0.5·a(t)·dt
+ *   2. x_new  = x + v_half·dt
+ *   3. a_new  = (F_spring(x_new) + F_damp(v_half) + F_drive(t+dt)) / m
+ *   4. v_new  = v_half + 0.5·a_new·dt
+ * 在无阻尼无驱动力时退化为标准 Velocity Verlet（辛积分，能量守恒）
+ * ============================================================ */
+function physicsStep(dt) {
+  const { m, k, c, F0, Omega } = state;
+
+  // 当前合力与加速度
+  const F_spring = -k * state.x;
+  const F_damp   = -c * state.v;
+  const F_drive  = F0 * Math.cos(Omega * state.t);
+  const a_cur    = (F_spring + F_damp + F_drive) / m;
+
+  // 半步速度
+  const v_half = state.v + 0.5 * a_cur * dt;
+
+  // 更新位置
+  state.x += v_half * dt;
+
+  // 更新时间（驱动力显式依赖时间）
+  state.t += dt;
+
+  // 新时刻的合力（阻尼力使用 v_half 近似）
+  const F_spring_new = -k * state.x;
+  const F_damp_new   = -c * v_half;
+  const F_drive_new  = F0 * Math.cos(Omega * state.t);
+  const a_new        = (F_spring_new + F_damp_new + F_drive_new) / m;
+
+  // 完成速度更新
+  state.v = v_half + 0.5 * a_new * dt;
+  state.a = a_new;
+}
+
+/* ============================================================
+ * 弹簧绘制：正弦波形折线，随振子位置实时拉伸/压缩
+ * ============================================================ */
+function drawSpring(ctx, x1, y1, x2, y2, coils, amplitude, restLength) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  if (length < 4) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    return;
+  }
+
+  const ux = dx / length;
+  const uy = dy / length;
+  const px = -uy;          // 垂直方向
+  const py = ux;
+
+  // 弹簧两端的直线引出段
+  const leadIn = Math.min(18, length * 0.12);
+  const springLen = Math.max(1, length - 2 * leadIn);
+
+  // 振幅随压缩程度略微变化（压缩时鼓起，拉伸时变扁），增强视觉真实感
+  // 使用传入的静止长度 restLength 计算参考弹簧段长度，而非当前的 springLen
+  const restLeadIn = Math.min(18, Math.max(1, restLength) * 0.12);
+  const restSpringLen = Math.max(1, restLength - 2 * restLeadIn);
+  const stretchRatio = springLen / restSpringLen;
+  const dynAmp = amplitude * Math.min(1.6, Math.max(0.4, 1 / Math.max(0.5, stretchRatio)));
+
+  const steps = 120;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 + ux * leadIn, y1 + uy * leadIn);
+
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const along = leadIn + springLen * t;
+    const cx = x1 + ux * along;
+    const cy = y1 + uy * along;
+    // 两端逐渐收口，中间最大
+    const taper = Math.sin(t * Math.PI);
+    const offset = dynAmp * taper * Math.sin(t * coils * 2 * Math.PI);
+    ctx.lineTo(cx + px * offset, cy + py * offset);
+  }
+
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+/* ============================================================
+ * 渲染：弹簧振子场景
+ * ============================================================ */
+function renderSpring() {
+  const ctx = springCtx;
+  const rect = springCanvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
+
+  // 背景
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, w, h);
+
+  // 布局参数
+  const wallX = 50;
+  const rightMargin = 40;
+  const centerY = h * 0.5;
+  const availableWidth = w - wallX - rightMargin;
+  const equilibriumX = wallX + availableWidth * 0.55;
+
+  // 像素/米映射：保证 ±2m 都能显示
+  const pixelsPerMeter = Math.min(90, (availableWidth * 0.4) / 2);
+
+  // ---- 平衡位置虚线 ----
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(equilibriumX, 20);
+  ctx.lineTo(equilibriumX, h - 20);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#6e7681';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('平衡位置 x=0', equilibriumX, 14);
+
+  // ---- 标尺 ----
+  ctx.strokeStyle = '#21262d';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = '#6e7681';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  for (let m = -2; m <= 2; m++) {
+    if (m === 0) continue;
+    const sx = equilibriumX + m * pixelsPerMeter;
+    if (sx < wallX || sx > w - 10) continue;
+    ctx.beginPath();
+    ctx.moveTo(sx, h - 22);
+    ctx.lineTo(sx, h - 14);
+    ctx.stroke();
+    ctx.fillText(m + 'm', sx, h - 4);
+  }
+
+  // ---- 墙壁 ----
+  ctx.strokeStyle = '#8b949e';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(wallX, 30);
+  ctx.lineTo(wallX, h - 30);
+  ctx.stroke();
+
+  // 墙壁斜线纹理
+  ctx.strokeStyle = '#6e7681';
+  ctx.lineWidth = 1;
+  for (let y = 30; y < h - 30; y += 9) {
+    ctx.beginPath();
+    ctx.moveTo(wallX, y);
+    ctx.lineTo(wallX - 12, y + 12);
+    ctx.stroke();
+  }
+
+  // ---- 振子位置 ----
+  const massX = equilibriumX + state.x * pixelsPerMeter;
+  const massSize = 46;
+
+  // ---- 弹簧 ----
+  ctx.strokeStyle = '#3fb950';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // 静止长度：平衡位置时弹簧的长度（wall 到振子左边缘）
+  const restSpringLength = equilibriumX - wallX - massSize / 2;
+  drawSpring(ctx, wallX, centerY, massX - massSize / 2, centerY, 14, 14, restSpringLength);
+
+  // ---- 振子（方块） ----
+  // 阴影
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(massX - massSize / 2 + 3, centerY - massSize / 2 + 3, massSize, massSize);
+
+  // 主体渐变
+  const grad = ctx.createLinearGradient(
+    massX - massSize / 2, centerY - massSize / 2,
+    massX - massSize / 2, centerY + massSize / 2
+  );
+  grad.addColorStop(0, '#79b8ff');
+  grad.addColorStop(1, '#1f6feb');
+  ctx.fillStyle = grad;
+  ctx.fillRect(massX - massSize / 2, centerY - massSize / 2, massSize, massSize);
+
+  // 边框
+  ctx.strokeStyle = '#58a6ff';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(massX - massSize / 2, centerY - massSize / 2, massSize, massSize);
+
+  // 质量标签
+  ctx.fillStyle = '#0d1117';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('m', massX, centerY);
+  ctx.textBaseline = 'alphabetic';
+
+  // ---- 速度箭头 ----
+  if (Math.abs(state.v) > 0.05) {
+    const arrowY = centerY - massSize / 2 - 18;
+    const arrowLen = Math.max(-100, Math.min(100, state.v * 25));
+    ctx.strokeStyle = '#d29922';
+    ctx.fillStyle = '#d29922';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(massX, arrowY);
+    ctx.lineTo(massX + arrowLen, arrowY);
+    ctx.stroke();
+    // 箭头头
+    const dir = Math.sign(arrowLen);
+    const tipX = massX + arrowLen;
+    ctx.beginPath();
+    ctx.moveTo(tipX, arrowY);
+    ctx.lineTo(tipX - dir * 7, arrowY - 4);
+    ctx.lineTo(tipX - dir * 7, arrowY + 4);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = dir > 0 ? 'left' : 'right';
+    ctx.fillText('v=' + state.v.toFixed(2), tipX + dir * 6, arrowY - 6);
+  }
+
+  // ---- 驱动力指示 ----
+  if (state.F0 > 0.01) {
+    const fY = centerY + massSize / 2 + 22;
+    const fLen = Math.max(-90, Math.min(90, state.F0 * 5 *
+      Math.cos(state.Omega * state.t)));
+    ctx.strokeStyle = '#f85149';
+    ctx.fillStyle = '#f85149';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(massX, fY);
+    ctx.lineTo(massX + fLen, fY);
+    ctx.stroke();
+    if (Math.abs(fLen) > 4) {
+      const dir = Math.sign(fLen);
+      const tipX = massX + fLen;
+      ctx.beginPath();
+      ctx.moveTo(tipX, fY);
+      ctx.lineTo(tipX - dir * 7, fY - 4);
+      ctx.lineTo(tipX - dir * 7, fY + 4);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('F(t)', massX, fY + 14);
+  }
+
+  // ---- 地面线 ----
+  ctx.strokeStyle = '#21262d';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(wallX - 12, centerY + massSize / 2 + 4);
+  ctx.lineTo(w - 10, centerY + massSize / 2 + 4);
+  ctx.stroke();
+}
+
+/* ============================================================
+ * 渲染：x(t) / v(t) / E(t) 曲线
+ * ============================================================ */
+function renderPlot() {
+  const ctx = plotCtx;
+  const rect = plotCanvas.getBoundingClientRect();
+  const w = rect.width;
+  const h = rect.height;
+
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, w, h);
+
+  const pad = { left: 48, right: 16, top: 14, bottom: 26 };
+  const pw = w - pad.left - pad.right;
+  const ph = h - pad.top - pad.bottom;
+  if (pw < 10 || ph < 10) return;
+
+  // 时间窗口（滚动）
+  const tWindow = 10;
+  const tMax = state.t;
+  const tMin = tMax - tWindow;
+
+  // 根据 plotMode 决定 Y 范围（仅遍历可见窗口内的数据点）
+  let yRange, yLabel, curves;
+  if (state.plotMode === 'x') {
+    yLabel = 'x (m)';
+    let maxX = 0.5;
+    for (const p of plotData) {
+      if (p.t < tMin) continue;
+      if (Math.abs(p.x) > maxX) maxX = Math.abs(p.x);
+    }
+    yRange = Math.max(1.0, maxX * 1.25);
+    curves = [{ key: 'x', color: '#3fb950', label: '位移 x' }];
+  } else if (state.plotMode === 'v') {
+    yLabel = 'v (m/s)';
+    let maxV = 0.5;
+    for (const p of plotData) {
+      if (p.t < tMin) continue;
+      if (Math.abs(p.v) > maxV) maxV = Math.abs(p.v);
+    }
+    yRange = Math.max(0.5, maxV * 1.25);
+    curves = [{ key: 'v', color: '#58a6ff', label: '速度 v' }];
+  } else {
+    yLabel = 'E (J)';
+    let maxE = 0.5;
+    for (const p of plotData) {
+      if (p.t < tMin) continue;
+      if (p.E > maxE) maxE = p.E;
+    }
+    yRange = Math.max(0.5, maxE * 1.15);
+    curves = [
+      { key: 'KE', color: '#58a6ff', label: '动能 KE' },
+      { key: 'PE', color: '#3fb950', label: '势能 PE' },
+      { key: 'E',  color: '#d29922', label: '总能 E',  dash: true },
+    ];
+  }
+
+  // ---- 网格 ----
+  ctx.strokeStyle = '#161b22';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 10; i++) {
+    const gx = pad.left + (i / 10) * pw;
+    ctx.beginPath();
+    ctx.moveTo(gx, pad.top);
+    ctx.lineTo(gx, pad.top + ph);
+    ctx.stroke();
+  }
+  const yLines = state.plotMode === 'e' ? 4 : 8;
+  for (let i = 0; i <= yLines; i++) {
+    const gy = pad.top + (i / yLines) * ph;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, gy);
+    ctx.lineTo(pad.left + pw, gy);
+    ctx.stroke();
+  }
+
+  // ---- 坐标轴 ----
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + ph);
+  ctx.lineTo(pad.left + pw, pad.top + ph);
+  ctx.stroke();
+
+  // ---- 零线 ----
+  let zeroY;
+  if (state.plotMode === 'e') {
+    zeroY = pad.top + ph;
+  } else {
+    zeroY = pad.top + ph / 2;
+    ctx.strokeStyle = '#3a4049';
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, zeroY);
+    ctx.lineTo(pad.left + pw, zeroY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // ---- 轴标签 ----
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(yLabel, 6, pad.top + 10);
+  ctx.textAlign = 'right';
+  ctx.fillText('t (s)', w - 6, h - 6);
+
+  // Y 轴刻度
+  ctx.textAlign = 'right';
+  ctx.font = '10px sans-serif';
+  if (state.plotMode === 'e') {
+    ctx.fillText(yRange.toFixed(2), pad.left - 4, pad.top + 8);
+    ctx.fillText('0', pad.left - 4, pad.top + ph + 3);
+    const mid = yRange / 2;
+    ctx.fillText(mid.toFixed(2), pad.left - 4, pad.top + ph / 2 + 3);
+  } else {
+    ctx.fillText(yRange.toFixed(2), pad.left - 4, pad.top + 8);
+    ctx.fillText('0', pad.left - 4, zeroY + 3);
+    ctx.fillText((-yRange).toFixed(2), pad.left - 4, pad.top + ph + 3);
+  }
+
+  // X 轴刻度
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= 5; i++) {
+    const tVal = tMin + (i / 5) * tWindow;
+    const tx = pad.left + (i / 5) * pw;
+    ctx.fillText(tVal.toFixed(1), tx, h - 8);
+  }
+
+  // ---- 曲线 ----
+  for (const curve of curves) {
+    ctx.strokeStyle = curve.color;
+    ctx.lineWidth = curve.key === 'E' ? 2 : 1.8;
+    if (curve.dash) ctx.setLineDash([5, 3]);
+    ctx.beginPath();
+    let started = false;
+    for (const p of plotData) {
+      if (p.t < tMin - 0.1) continue;
+      const px = pad.left + ((p.t - tMin) / tWindow) * pw;
+      let val = p[curve.key];
+      const py = state.plotMode === 'e'
+        ? pad.top + ph - (val / yRange) * ph
+        : zeroY - (val / yRange) * (ph / 2);
+      // 裁剪到画布内
+      const clampedY = Math.max(pad.top - 5, Math.min(pad.top + ph + 5, py));
+      if (!started) { ctx.moveTo(px, clampedY); started = true; }
+      else { ctx.lineTo(px, clampedY); }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // ---- 当前点标记 ----
+  if (plotData.size > 0) {
+    const last = plotData.last();
+    const px = pad.left + ((last.t - tMin) / tWindow) * pw;
+    for (const curve of curves) {
+      let val = last[curve.key];
+      const py = state.plotMode === 'e'
+        ? pad.top + ph - (val / yRange) * ph
+        : zeroY - (val / yRange) * (ph / 2);
+      ctx.fillStyle = curve.color;
+      ctx.beginPath();
+      ctx.arc(px, py, 3.5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  }
+
+  // ---- 图例（能量模式） ----
+  if (state.plotMode === 'e') {
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'left';
+    let lx = pad.left + 8;
+    for (const c of curves) {
+      ctx.fillStyle = c.color;
+      ctx.fillRect(lx, pad.top + 4, 12, 2);
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText(c.label, lx + 16, pad.top + 8);
+      lx += 80;
+    }
+  }
+}
+
+/* ============================================================
+ * 更新数据显示面板
+ * ============================================================ */
+function updateDataDisplay() {
+  const omega0 = Math.sqrt(state.k / state.m);
+  const period = 2 * Math.PI / omega0;
+  const zeta = state.c / (2 * Math.sqrt(state.k * state.m));
+
+  dom.omegaVal.textContent  = omega0.toFixed(3);
+  dom.periodVal.textContent = period.toFixed(3);
+  dom.xVal.textContent      = state.x.toFixed(3);
+  dom.vVal.textContent      = state.v.toFixed(3);
+  dom.aVal.textContent      = state.a.toFixed(3);
+  dom.zetaVal.textContent   = zeta.toFixed(3);
+
+  // 能量
+  const KE = 0.5 * state.m * state.v * state.v;
+  const PE = 0.5 * state.k * state.x * state.x;
+  const E  = KE + PE;
+
+  dom.keVal.textContent    = KE.toFixed(3) + ' J';
+  dom.peVal.textContent    = PE.toFixed(3) + ' J';
+  dom.totalVal.textContent = E.toFixed(3)  + ' J';
+
+  // 能量条（以初始总能为参考）
+  const E_ref = 0.5 * state.k * state.x0 * state.x0 || 1;
+  const refMax = Math.max(E_ref, E) * 1.1;
+  dom.keBar.style.width    = Math.min(100, (KE / refMax) * 100) + '%';
+  dom.peBar.style.width    = Math.min(100, (PE / refMax) * 100) + '%';
+  dom.totalBar.style.width = Math.min(100, (E  / refMax) * 100) + '%';
+
+  // 频率比
+  const ratio = omega0 > 0 ? state.Omega / omega0 : 0;
+  dom.freqRatioText.textContent =
+    '当前 Ω/ω₀ = ' + ratio.toFixed(3) + (Math.abs(ratio - 1) < 0.05 ? '  ⚡ 共振区' : '');
+}
+
+/* ============================================================
+ * 主循环
+ * ============================================================ */
+const PLOT_SAMPLE_DT = 0.01;  // 数据采样间隔（仿真秒），与显示器刷新率解耦
+let nextSampleTime = 0;       // 下一个采样时间点
+let needsRender = true;        // dirty 标志：暂停时仅在状态变化后渲染一次
+
+function animate(now) {
+  if (lastFrameTime === 0) lastFrameTime = now;
+  const frameDt = Math.min((now - lastFrameTime) / 1000, MAX_FRAME_DT);
+  lastFrameTime = now;
+
+  if (state.running) {
+    // 固定步长累加器：保证物理积分步长恒定
+    accumulator += frameDt;
+    let steps = 0;
+    while (accumulator >= PHYSICS_DT && steps < 1000) {
+      physicsStep(PHYSICS_DT);
+      accumulator -= PHYSICS_DT;
+      steps++;
+      // 按固定仿真时间间隔采样，而非每帧采样
+      if (state.t >= nextSampleTime) {
+        const KE = 0.5 * state.m * state.v * state.v;
+        const PE = 0.5 * state.k * state.x * state.x;
+        plotData.push({ t: state.t, x: state.x, v: state.v, KE, PE, E: KE + PE });
+        nextSampleTime += PLOT_SAMPLE_DT;
+      }
+    }
+    // 防止累积器爆炸
+    if (accumulator > MAX_FRAME_DT) accumulator = 0;
+    needsRender = true;
+  }
+
+  // dirty 标志控制：运行时每帧渲染，暂停时仅在状态变化后渲染一次
+  if (needsRender) {
+    renderSpring();
+    renderPlot();
+    updateDataDisplay();
+    needsRender = false;
+  }
+
+  requestAnimationFrame(animate);
+}
+
+/* ============================================================
+ * 模式切换：自动调整参数与 UI 可用性
+ * ============================================================ */
+function setMode(mode) {
+  state.mode = mode;
+
+  // 更新 tab 高亮
+  document.querySelectorAll('.mode-tab[data-mode]').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+
+  const cSlider = dom.cSlider;
+  const F0Slider = dom.F0Slider;
+  const OmegaSlider = dom.OmegaSlider;
+
+  if (mode === 'ideal') {
+    // 理想：无阻尼无驱动力
+    state.c = 0; state.F0 = 0; state.Omega = 0;
+    cSlider.value = 0; F0Slider.value = 0; OmegaSlider.value = 0;
+    cSlider.disabled = true; F0Slider.disabled = true; OmegaSlider.disabled = true;
+    dom.dampingSection.style.opacity = '0.4';
+    dom.forcingSection.style.opacity = '0.4';
+  } else if (mode === 'damped') {
+    // 阻尼：可调 c，无驱动力
+    if (state.c === 0) state.c = 0.5;
+    cSlider.value = state.c;
+    state.F0 = 0; state.Omega = 0;
+    F0Slider.value = 0; OmegaSlider.value = 0;
+    cSlider.disabled = false; F0Slider.disabled = true; OmegaSlider.disabled = true;
+    dom.dampingSection.style.opacity = '1';
+    dom.forcingSection.style.opacity = '0.4';
+  } else if (mode === 'forced') {
+    // 受迫：全部可调，默认给一个驱动力
+    if (state.c === 0) state.c = 0.3;
+    if (state.F0 === 0) state.F0 = 5;
+    if (state.Omega === 0) {
+      const omega0 = Math.sqrt(state.k / state.m);
+      state.Omega = omega0; // 默认共振频率
+    }
+    cSlider.value = state.c;
+    F0Slider.value = state.F0;
+    OmegaSlider.value = state.Omega;
+    cSlider.disabled = false; F0Slider.disabled = false; OmegaSlider.disabled = false;
+    dom.dampingSection.style.opacity = '1';
+    dom.forcingSection.style.opacity = '1';
+  }
+
+  syncSliderLabels();
+  resetSimulation(false);
+  needsRender = true;
+}
+
+/* ============================================================
+ * 重置仿真
+ * ============================================================ */
+function resetSimulation(clearPlot = true) {
+  state.x = state.x0;
+  state.v = 0;
+  // 初始加速度需包含全部力：弹簧力 + 阻尼力(v=0 故为0) + 驱动力(t=0 时 F0*cos(0)=F0)
+  state.a = (-state.k * state.x0 + state.F0) / state.m;
+  state.t = 0;
+  accumulator = 0;
+  nextSampleTime = 0;
+  if (clearPlot) plotData.clear();
+}
+
+/* ============================================================
+ * 同步滑块标签
+ * ============================================================ */
+function syncSliderLabels() {
+  dom.mVal.textContent     = state.m.toFixed(2);
+  dom.kVal.textContent     = state.k.toFixed(1);
+  dom.cVal.textContent     = state.c.toFixed(2);
+  dom.F0Val.textContent    = state.F0.toFixed(2);
+  dom.OmegaVal.textContent = state.Omega.toFixed(2);
+  dom.x0Val.textContent    = state.x0.toFixed(2);
+}
+
+/* ============================================================
+ * 事件绑定
+ * ============================================================ */
+function bindEvents() {
+  // 模式切换
+  document.querySelectorAll('.mode-tab[data-mode]').forEach(btn => {
+    btn.addEventListener('click', () => setMode(btn.dataset.mode));
+  });
+
+  // 图切换
+  document.querySelectorAll('.mode-tab[data-plot]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.plotMode = btn.dataset.plot;
+      document.querySelectorAll('.mode-tab[data-plot]').forEach(b =>
+        b.classList.toggle('active', b === btn));
+      const titles = { x: '位移 - 时间曲线 x(t)', v: '速度 - 时间曲线 v(t)', e: '能量 - 时间曲线 E(t)' };
+      dom.plotTitle.textContent = titles[state.plotMode];
+      needsRender = true;
+    });
+  });
+
+  // 参数滑块（暂停时拖动也需触发渲染以预览状态变化）
+  dom.mSlider.addEventListener('input', e => {
+    state.m = parseFloat(e.target.value);
+    syncSliderLabels();
+    if (!state.running) resetSimulation(false);
+    needsRender = true;
+  });
+  dom.kSlider.addEventListener('input', e => {
+    state.k = parseFloat(e.target.value);
+    syncSliderLabels();
+    if (!state.running) resetSimulation(false);
+    needsRender = true;
+  });
+  dom.cSlider.addEventListener('input', e => {
+    state.c = parseFloat(e.target.value);
+    syncSliderLabels();
+    needsRender = true;
+  });
+  dom.F0Slider.addEventListener('input', e => {
+    state.F0 = parseFloat(e.target.value);
+    syncSliderLabels();
+    if (!state.running) resetSimulation(false);
+    needsRender = true;
+  });
+  dom.OmegaSlider.addEventListener('input', e => {
+    state.Omega = parseFloat(e.target.value);
+    syncSliderLabels();
+    if (!state.running) resetSimulation(false);
+    needsRender = true;
+  });
+  dom.x0Slider.addEventListener('input', e => {
+    state.x0 = parseFloat(e.target.value);
+    syncSliderLabels();
+    if (!state.running) resetSimulation(false);
+    needsRender = true;
+  });
+
+  // 开始/暂停
+  const playBtn = dom.playBtn;
+  playBtn.addEventListener('click', () => {
+    state.running = !state.running;
+    if (state.running) {
+      playBtn.textContent = '⏸ 暂停';
+      playBtn.classList.add('paused');
+      lastFrameTime = 0;
+    } else {
+      playBtn.textContent = '▶ 继续';
+      playBtn.classList.remove('paused');
+    }
+    needsRender = true;
+  });
+
+  // 重置
+  dom.resetBtn.addEventListener('click', () => {
+    resetSimulation(true);
+    state.running = false;
+    playBtn.textContent = '▶ 开始';
+    playBtn.classList.remove('paused');
+    needsRender = true;
+  });
+
+  // 窗口尺寸变化
+  window.addEventListener('resize', () => {
+    resizeAll();
+    needsRender = true;
+  });
+}
+
+/* ============================================================
+ * 初始化
+ * ============================================================ */
+function init() {
+  cacheDom();
+  resizeAll();
+  bindEvents();
+  setMode('ideal');
+  resetSimulation(true);
+  requestAnimationFrame(animate);
+}
+
+// 等待布局完成
+window.addEventListener('load', init);
+</script>
+</body>
+</html>

@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>带电粒子在电磁场中的运动 · BORIS 算法模拟</title>
+<style>
+  /* ============ 全局样式 / 暗色科技风 ============ */
+  :root {
+    --bg-0: #05070d;
+    --bg-1: #0a0f1c;
+    --bg-2: #111827;
+    --panel: rgba(17, 24, 39, 0.78);
+    --panel-border: rgba(56, 189, 248, 0.18);
+    --accent: #38bdf8;
+    --accent-2: #22d3ee;
+    --accent-glow: rgba(56, 189, 248, 0.45);
+    --positive: #f472b6;
+    --negative: #a78bfa;
+    --efield: #fbbf24;
+    --efield-glow: rgba(251, 191, 36, 0.45);
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-faint: #64748b;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+    color: var(--text);
+    background: var(--bg-0);
+  }
+
+  body {
+    background:
+      radial-gradient(1200px 600px at 20% -10%, rgba(56,189,248,0.10), transparent 60%),
+      radial-gradient(900px 500px at 110% 110%, rgba(167,139,250,0.10), transparent 60%),
+      linear-gradient(180deg, var(--bg-0), var(--bg-1));
+  }
+
+  /* ============ 整体布局 ============ */
+  .app {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: 1fr;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ============ 左侧控制面板 ============ */
+  .sidebar {
+    background: var(--panel);
+    backdrop-filter: blur(12px);
+    border-right: 1px solid var(--panel-border);
+    padding: 18px 18px 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+  }
+
+  .sidebar::-webkit-scrollbar { width: 6px; }
+  .sidebar::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.25); border-radius: 3px; }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .brand .logo {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center;
+    box-shadow: 0 0 16px var(--accent-glow);
+    font-weight: 700;
+    color: #04111a;
+  }
+  .brand h1 {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    line-height: 1.3;
+  }
+  .brand .sub {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title::before {
+    content: '';
+    width: 3px; height: 12px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  .section-title.efield::before {
+    background: var(--efield);
+  }
+
+  /* ============ 滑块控件 ============ */
+  .control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .control-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .control-label {
+    font-size: 13px;
+    color: var(--text);
+  }
+  .control-label .sym {
+    font-family: 'Cambria Math', 'Times New Roman', serif;
+    font-style: italic;
+    color: var(--accent);
+    margin-right: 4px;
+  }
+  .control-label .sym.e {
+    color: var(--efield);
+  }
+  .control-value {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 12px;
+    color: var(--accent-2);
+    background: rgba(56,189,248,0.08);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(56,189,248,0.15);
+    min-width: 70px;
+    text-align: right;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, rgba(56,189,248,0.4), rgba(56,189,248,0.1));
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #0a0f1c;
+    box-shadow: 0 0 10px var(--accent-glow);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+  input[type="range"]::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #0a0f1c;
+    box-shadow: 0 0 10px var(--accent-glow);
+    cursor: pointer;
+  }
+
+  .hint {
+    font-size: 10.5px;
+    color: var(--text-faint);
+    line-height: 1.5;
+  }
+
+  /* ============ 按钮组 ============ */
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .btn {
+    padding: 10px 12px;
+    border: 1px solid var(--panel-border);
+    background: rgba(56,189,248,0.06);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .btn:hover {
+    background: rgba(56,189,248,0.15);
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(56,189,248,0.2);
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #04111a;
+    font-weight: 600;
+    border-color: transparent;
+  }
+  .btn.primary:hover { box-shadow: 0 0 18px var(--accent-glow); }
+  .btn .icon { font-size: 14px; }
+
+  /* ============ 可视化开关 ============ */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text);
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  .toggle-row input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+  }
+
+  /* ============ 物理信息卡 ============ */
+  .info-card {
+    background: rgba(8, 12, 22, 0.6);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+  }
+  .info-row .k { color: var(--text-dim); }
+  .info-row .v {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-2);
+  }
+  .info-row .v.efield-val { color: var(--efield); }
+
+  /* ============ 主画布区 ============ */
+  .main {
+    position: relative;
+    overflow: hidden;
+  }
+  #canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+  }
+
+  /* ============ 顶部状态条 ============ */
+  .status-bar {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    right: 14px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .stat-chip {
+    background: rgba(8, 12, 22, 0.72);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+  }
+  .stat-chip .label {
+    color: var(--text-faint);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .stat-chip .val {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-2);
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .stat-chip .val.positive { color: var(--positive); }
+  .stat-chip .val.negative { color: var(--negative); }
+  .stat-chip .val.ok { color: var(--ok); }
+  .stat-chip .val.efield-val { color: var(--efield); }
+
+  /* ============ 底部提示 ============ */
+  .footer-hint {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(8, 12, 22, 0.72);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--panel-border);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 11px;
+    color: var(--text-dim);
+    z-index: 10;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .footer-hint kbd {
+    background: rgba(56,189,248,0.15);
+    border: 1px solid rgba(56,189,248,0.3);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: monospace;
+    color: var(--accent-2);
+    margin: 0 2px;
+  }
+
+  /* ============ 响应式 ============ */
+  @media (max-width: 760px) {
+    .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+    }
+    .sidebar {
+      max-height: 45vh;
+      border-right: none;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .status-bar { top: 8px; left: 8px; right: 8px; }
+    .stat-chip { padding: 6px 10px; font-size: 11px; }
+    .footer-hint { font-size: 10px; padding: 5px 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ 左侧控制面板 ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">B</div>
+      <div>
+        <h1>电磁场中带电粒子模拟</h1>
+        <div class="sub">BORIS Pusher · 洛伦兹力 F = q(E + v×B)</div>
+      </div>
+    </div>
+
+    <!-- 物理参数 -->
+    <div>
+      <div class="section-title">物理参数</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+
+        <div class="control">
+          <div class="control-head">
+            <span class="control-label"><span class="sym">B</span>磁场强度 (T)</span>
+            <span class="control-value" id="val-B">+1.00</span>
+          </div>
+          <input type="range" id="slider-B" min="-5" max="5" step="0.05" value="1.0">
+          <div class="hint">正值：磁场指向屏幕外（⊙）；负值：指向屏幕内（⊗）</div>
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <span class="control-label"><span class="sym">q</span>电荷量 (C)</span>
+            <span class="control-value" id="val-q">+1.00</span>
+          </div>
+          <input type="range" id="slider-q" min="-5" max="5" step="0.05" value="1.0">
+          <div class="hint">正电荷与负电荷偏转方向相反</div>
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <span class="control-label"><span class="sym">m</span>粒子质量 (kg)</span>
+            <span class="control-value" id="val-m">1.00</span>
+          </div>
+          <input type="range" id="slider-m" min="0.1" max="5" step="0.05" value="1.0">
+          <div class="hint">质量越大，回旋半径越大、频率越低</div>
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <span class="control-label"><span class="sym">v₀</span>初始速率 (m/s)</span>
+            <span class="control-value" id="val-v">80.0</span>
+          </div>
+          <input type="range" id="slider-v" min="10" max="300" step="1" value="80">
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <span class="control-label"><span class="sym">θ</span>初始速度方向 (°)</span>
+            <span class="control-value" id="val-theta">0</span>
+          </div>
+          <input type="range" id="slider-theta" min="0" max="360" step="1" value="0">
+          <div class="hint">0° 向右，90° 向上，180° 向左，270° 向下；重置后生效</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 电场参数 -->
+    <div>
+      <div class="section-title efield">电场参数</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+
+        <div class="control">
+          <div class="control-head">
+            <span class="control-label"><span class="sym e">E<sub>x</sub></span>电场 X 分量 (V/m)</span>
+            <span class="control-value" id="val-Ex">0.00</span>
+          </div>
+          <input type="range" id="slider-Ex" min="-5" max="5" step="0.05" value="0">
+          <div class="hint">水平方向电场分量，正值向右</div>
+        </div>
+
+        <div class="control">
+          <div class="control-head">
+            <span class="control-label"><span class="sym e">E<sub>y</sub></span>电场 Y 分量 (V/m)</span>
+            <span class="control-value" id="val-Ey">0.00</span>
+          </div>
+          <input type="range" id="slider-Ey" min="-5" max="5" step="0.05" value="0">
+          <div class="hint">垂直方向电场分量，正值向上</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 动画控制 -->
+    <div>
+      <div class="section-title">动画控制</div>
+      <div class="btn-row" style="margin-top:8px;">
+        <button class="btn primary" id="btn-toggle">
+          <span class="icon" id="toggle-icon">▶</span>
+          <span id="toggle-text">开始</span>
+        </button>
+        <button class="btn" id="btn-reset">
+          <span class="icon">↺</span>
+          <span>重置</span>
+        </button>
+      </div>
+      <div class="control" style="margin-top:10px;">
+        <div class="control-head">
+          <span class="control-label">动画速度</span>
+          <span class="control-value" id="val-speed">1.00x</span>
+        </div>
+        <input type="range" id="slider-speed" min="0.25" max="5" step="0.25" value="1">
+      </div>
+    </div>
+
+    <!-- 可视化选项 -->
+    <div>
+      <div class="section-title">可视化选项</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;">
+        <label class="toggle-row">
+          <input type="checkbox" id="chk-circle" checked>
+          <span>回旋圆（理论轨道圆心）</span>
+        </label>
+        <label class="toggle-row">
+          <input type="checkbox" id="chk-force" checked>
+          <span>洛伦兹力矢量 F</span>
+        </label>
+        <label class="toggle-row">
+          <input type="checkbox" id="chk-drift">
+          <span>E×B 漂移方向</span>
+        </label>
+        <label class="toggle-row">
+          <input type="checkbox" id="chk-follow" checked>
+          <span>自动跟随粒子</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 衍生物理量 -->
+    <div>
+      <div class="section-title">衍生量 · 实时计算</div>
+      <div class="info-card" style="margin-top:8px;">
+        <div class="info-row">
+          <span class="k">回旋频率 ω = |q|B/m</span>
+          <span class="v" id="info-omega">1.000 rad/s</span>
+        </div>
+        <div class="info-row">
+          <span class="k">回旋周期 T = 2π/ω</span>
+          <span class="v" id="info-T">6.283 s</span>
+        </div>
+        <div class="info-row">
+          <span class="k">回旋半径 r = mv⊥/|q|B</span>
+          <span class="v" id="info-r">80.00 m</span>
+        </div>
+        <div class="info-row">
+          <span class="k">时间步长 dt = 0.01·T</span>
+          <span class="v" id="info-dt">0.0628 s</span>
+        </div>
+        <div class="info-row">
+          <span class="k">E×B 漂移速度</span>
+          <span class="v efield-val" id="info-drift">—</span>
+        </div>
+        <div class="info-row">
+          <span class="k">洛伦兹力 |F|</span>
+          <span class="v efield-val" id="info-force">80.00 N</span>
+        </div>
+        <div class="info-row">
+          <span class="k">模拟时间 t</span>
+          <span class="v" id="info-t">0.00 s</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint" style="margin-top:auto;padding-top:8px;border-top:1px solid var(--panel-border);">
+      BORIS 算法为辛积分器，对纯磁场严格守能。加入电场后动能可变化（E 场做功）。<br>
+      滚轮缩放 · 拖拽平移（关闭自动跟随时）· 点击设置初始位置
+    </div>
+  </aside>
+
+  <!-- ============ 主画布区 ============ -->
+  <main class="main">
+    <canvas id="canvas"></canvas>
+
+    <!-- 顶部实时数据 -->
+    <div class="status-bar">
+      <div class="stat-chip">
+        <span class="label">速度大小 |v|</span>
+        <span class="val ok" id="stat-speed">80.00</span>
+        <span style="color:var(--text-faint);font-size:10px;">m/s</span>
+      </div>
+      <div class="stat-chip">
+        <span class="label">位置 X</span>
+        <span class="val" id="stat-x">0.00</span>
+        <span style="color:var(--text-faint);font-size:10px;">m</span>
+      </div>
+      <div class="stat-chip">
+        <span class="label">位置 Y</span>
+        <span class="val" id="stat-y">0.00</span>
+        <span style="color:var(--text-faint);font-size:10px;">m</span>
+      </div>
+      <div class="stat-chip">
+        <span class="label">动能 Eₖ</span>
+        <span class="val" id="stat-ek">3200</span>
+        <span style="color:var(--text-faint);font-size:10px;">J</span>
+      </div>
+      <div class="stat-chip">
+        <span class="label">磁场方向</span>
+        <span class="val" id="stat-bdir">⊙ 向外</span>
+      </div>
+    </div>
+
+    <div class="footer-hint">
+      <kbd>空格</kbd> 暂停/继续 &nbsp;·&nbsp; <kbd>R</kbd> 重置 &nbsp;·&nbsp; <kbd>滚轮</kbd> 缩放 &nbsp;·&nbsp; 点击设置位置 &nbsp;·&nbsp; 拖拽平移
+    </div>
+  </main>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+ *  带电粒子在电磁场中的运动 —— BORIS 算法实现
+ *  F = q(E + v × B)，B 沿 z 轴（垂直屏幕），E 在 xy 平面，v 在 xy 平面
+ *  BORIS 推进器：半 E kick → 旋转 → 半 E kick
+ *  纯磁场时严格守能（速度大小不变），有 E 场时动能可变
+ * ============================================================ */
+
+// ---------- DOM ----------
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+const sliderB     = document.getElementById('slider-B');
+const sliderQ     = document.getElementById('slider-q');
+const sliderM     = document.getElementById('slider-m');
+const sliderV     = document.getElementById('slider-v');
+const sliderTheta = document.getElementById('slider-theta');
+const sliderEx    = document.getElementById('slider-Ex');
+const sliderEy    = document.getElementById('slider-Ey');
+const sliderSpeed = document.getElementById('slider-speed');
+
+const valB     = document.getElementById('val-B');
+const valQ     = document.getElementById('val-q');
+const valM     = document.getElementById('val-m');
+const valV     = document.getElementById('val-v');
+const valTheta = document.getElementById('val-theta');
+const valEx    = document.getElementById('val-Ex');
+const valEy    = document.getElementById('val-Ey');
+const valSpeed = document.getElementById('val-speed');
+
+const btnToggle  = document.getElementById('btn-toggle');
+const btnReset   = document.getElementById('btn-reset');
+const toggleIcon = document.getElementById('toggle-icon');
+const toggleText = document.getElementById('toggle-text');
+
+const chkCircle = document.getElementById('chk-circle');
+const chkForce  = document.getElementById('chk-force');
+const chkDrift  = document.getElementById('chk-drift');
+const chkFollow = document.getElementById('chk-follow');
+
+const infoOmega = document.getElementById('info-omega');
+const infoT     = document.getElementById('info-T');
+const infoR     = document.getElementById('info-r');
+const infoDt    = document.getElementById('info-dt');
+const infoDrift = document.getElementById('info-drift');
+const infoForce = document.getElementById('info-force');
+const infoT2    = document.getElementById('info-t');
+
+const statSpeed = document.getElementById('stat-speed');
+const statX     = document.getElementById('stat-x');
+const statY     = document.getElementById('stat-y');
+const statEk    = document.getElementById('stat-ek');
+const statBdir  = document.getElementById('stat-bdir');
+
+// ---------- 物理状态 ----------
+const state = {
+  B: 1.0,        // 磁场强度（带符号，正=+Z 向外，负=-Z 向内）
+  q: 1.0,        // 电荷量
+  m: 1.0,        // 质量
+  v0: 80.0,      // 初始速率
+  theta: 0,      // 初始速度方向角（度）
+  Ex: 0,         // 电场 X 分量
+  Ey: 0,         // 电场 Y 分量
+  animSpeed: 1,  // 动画速度倍率
+  // 粒子状态
+  x: 0, y: 0,    // 位置（物理坐标，米）
+  vx: 0, vy: 0,  // 速度
+  t: 0,          // 模拟时间
+  running: false,
+  trail: [],     // 轨迹点 [{x,y,age}]
+  maxTrail: 1500,
+  // 视图
+  scale: 4,      // 像素/米
+  cx: 0, cy: 0,  // 画布中心对应的物理坐标
+  // 可视化开关
+  autoFollow: true,
+  showCircle: true,
+  showForce: true,
+  showDrift: false,
+};
+
+// ---------- 画布尺寸 ----------
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = Math.max(1, Math.floor(rect.width  * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', () => { resizeCanvas(); draw(); });
+
+// ---------- 坐标变换：物理坐标 -> 屏幕坐标 ----------
+function physToScreen(px, py) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = rect.width  / 2 + (px - state.cx) * state.scale;
+  const sy = rect.height / 2 - (py - state.cy) * state.scale; // y 翻转
+  return [sx, sy];
+}
+
+// ---------- 重置粒子 ----------
+function resetParticle() {
+  state.x = 0;
+  state.y = 0;
+  const thetaRad = state.theta * Math.PI / 180;
+  state.vx = state.v0 * Math.cos(thetaRad);
+  state.vy = state.v0 * Math.sin(thetaRad);
+  state.t = 0;
+  state.trail = [];
+  // 自适应缩放
+  const r = computeRadius();
+  const rect = canvas.getBoundingClientRect();
+  const targetPx = Math.min(rect.width, rect.height) * 0.22;
+  state.scale = r > 1e-6 ? Math.max(0.5, targetPx / r) : 4;
+  state.cx = 0; state.cy = 0;
+  updateInfo();
+  draw();
+}
+
+// ---------- 衍生物理量 ----------
+function computeOmega() { return Math.abs(state.q * state.B / state.m); }
+function computePeriod() {
+  const w = computeOmega();
+  return w > 1e-9 ? (2 * Math.PI / w) : Infinity;
+}
+function computeRadius() {
+  const denom = Math.abs(state.q * state.B);
+  return denom > 1e-9 ? (state.m * state.v0 / denom) : Infinity;
+}
+function computeDt() {
+  const T = computePeriod();
+  return isFinite(T) ? (0.01 * T) : 0.016;
+}
+
+// E×B 漂移速度（仅当 B≠0 时有意义）
+function computeDriftVelocity() {
+  if (Math.abs(state.B) < 1e-9) return [0, 0];
+  return [state.Ey / state.B, -state.Ex / state.B];
+}
+
+// 洛伦兹力
+function computeForce() {
+  return [
+    state.q * (state.Ex + state.vy * state.B),
+    state.q * (state.Ey - state.vx * state.B)
+  ];
+}
+
+// ---------- BORIS 推进器（2D，B 沿 z 轴，E 在 xy 平面）----------
+//  标准 BORIS：半 E kick → 旋转 → 半 E kick
+//  纯磁场时等价于精确旋转，严格守能。
+function borisPush(vx, vy, dt) {
+  const Bz = state.B;
+  const qm = state.q / state.m;
+  const Ex = state.Ex;
+  const Ey = state.Ey;
+
+  // 半 E 场 kick：v_minus = v_n + (qE/m)·dt/2
+  let vmx = vx + qm * Ex * dt / 2;
+  let vmy = vy + qm * Ey * dt / 2;
+
+  // 旋转步：t = (qB/m)·dt/2，s = 2t/(1+|t|²)
+  const tz = qm * Bz * dt / 2;
+  const sz = 2 * tz / (1 + tz * tz);
+
+  // v' = v_minus + v_minus × t
+  const vpx = vmx + vmy * tz;
+  const vpy = vmy - vmx * tz;
+
+  // v_plus = v_minus + v' × s
+  const vplusx = vmx + vpy * sz;
+  const vplusy = vmy - vpx * sz;
+
+  // 半 E 场 kick：v_{n+1} = v_plus + (qE/m)·dt/2
+  return [vplusx + qm * Ex * dt / 2, vplusy + qm * Ey * dt / 2];
+}
+
+// ---------- 物理步进 ----------
+function step() {
+  const dt = computeDt();
+  // 动态子步数：E 场大时增加精度
+  const Emag = Math.hypot(state.Ex, state.Ey);
+  const subSteps = Emag > 0.5 ? 4 : Emag > 0.1 ? 2 : 1;
+  const sdt = dt / subSteps;
+  for (let i = 0; i < subSteps; i++) {
+    const [nvx, nvy] = borisPush(state.vx, state.vy, sdt);
+    state.vx = nvx;
+    state.vy = nvy;
+    state.x += state.vx * sdt;
+    state.y += state.vy * sdt;
+    state.t += sdt;
+  }
+  // 记录轨迹
+  state.trail.push({ x: state.x, y: state.y, age: 0 });
+  if (state.trail.length > state.maxTrail) state.trail.shift();
+  for (const p of state.trail) p.age++;
+}
+
+// ---------- 绘制：磁场背景 ----------
+function drawFieldBackground() {
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  // 物理坐标网格：保证背景符号随视图平移，与轨迹/坐标轴一致
+  const screenSpacing = 36;
+  const physSpacing = screenSpacing / state.scale;
+
+  // 可见物理区域
+  const left   = state.cx - W / 2 / state.scale;
+  const right  = state.cx + W / 2 / state.scale;
+  const bottom = state.cy - H / 2 / state.scale;
+  const top    = state.cy + H / 2 / state.scale;
+
+  // 对齐到物理坐标网格（以原点为基准）
+  const startX = Math.floor(left / physSpacing) * physSpacing;
+  const endX   = Math.ceil(right / physSpacing) * physSpacing;
+  const startY = Math.floor(bottom / physSpacing) * physSpacing;
+  const endY   = Math.ceil(top / physSpacing) * physSpacing;
+
+  const isOut = state.B >= 0;
+  const intensity = Math.min(1, Math.abs(state.B) / 5);
+  const baseAlpha = 0.10 + 0.25 * intensity;
+
+  ctx.lineWidth = 1;
+  for (let px = startX; px <= endX; px += physSpacing) {
+    for (let py = startY; py <= endY; py += physSpacing) {
+      const [gx, gy] = physToScreen(px, py);
+      // 超出画布范围的跳过
+      if (gx < -10 || gx > W + 10 || gy < -10 || gy > H + 10) continue;
+      if (isOut) {
+        ctx.beginPath();
+        ctx.arc(gx, gy, 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(56, 189, 248, ${baseAlpha})`;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(gx, gy, 5, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${baseAlpha * 0.5})`;
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = `rgba(244, 114, 182, ${baseAlpha})`;
+        ctx.beginPath();
+        ctx.moveTo(gx - 4, gy - 4);
+        ctx.lineTo(gx + 4, gy + 4);
+        ctx.moveTo(gx + 4, gy - 4);
+        ctx.lineTo(gx - 4, gy + 4);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(gx, gy, 5, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(244, 114, 182, ${baseAlpha * 0.4})`;
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+// ---------- 绘制：电场背景 ----------
+function drawEFieldBackground() {
+  const Emag = Math.hypot(state.Ex, state.Ey);
+  if (Emag < 0.01) return;
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  // 物理坐标网格
+  const screenSpacing = 54;
+  const physSpacing = screenSpacing / state.scale;
+
+  const left   = state.cx - W / 2 / state.scale;
+  const right  = state.cx + W / 2 / state.scale;
+  const bottom = state.cy - H / 2 / state.scale;
+  const top    = state.cy + H / 2 / state.scale;
+
+  const startX = Math.floor(left / physSpacing) * physSpacing;
+  const endX   = Math.ceil(right / physSpacing) * physSpacing;
+  const startY = Math.floor(bottom / physSpacing) * physSpacing;
+  const endY   = Math.ceil(top / physSpacing) * physSpacing;
+
+  const intensity = Math.min(1, Emag / 5);
+  const alpha = 0.12 + 0.18 * intensity;
+
+  // E 方向在屏幕坐标（y 翻转）
+  const dirX = state.Ex;
+  const dirY = -state.Ey;
+  const dirLen = Math.hypot(dirX, dirY);
+  if (dirLen < 0.01) return;
+  const ux = dirX / dirLen;
+  const uy = dirY / dirLen;
+
+  const arrowLen = 6 + 4 * intensity;
+  const headLen = 3 + intensity;
+
+  ctx.strokeStyle = `rgba(251, 191, 36, ${alpha})`;
+  ctx.lineWidth = 1.2;
+
+  for (let px = startX; px <= endX; px += physSpacing) {
+    for (let py = startY; py <= endY; py += physSpacing) {
+      const [gx, gy] = physToScreen(px, py);
+      if (gx < -10 || gx > W + 10 || gy < -10 || gy > H + 10) continue;
+
+      const startX2 = gx - ux * arrowLen * 0.5;
+      const startY2 = gy - uy * arrowLen * 0.5;
+      const endX2 = gx + ux * arrowLen * 0.5;
+      const endY2 = gy + uy * arrowLen * 0.5;
+
+      ctx.beginPath();
+      ctx.moveTo(startX2, startY2);
+      ctx.lineTo(endX2, endY2);
+      ctx.stroke();
+
+      // 箭头头
+      ctx.beginPath();
+      ctx.moveTo(endX2, endY2);
+      ctx.lineTo(endX2 - headLen * (ux + uy * 0.4), endY2 - headLen * (uy - ux * 0.4));
+      ctx.lineTo(endX2 - headLen * (ux - uy * 0.4), endY2 - headLen * (uy + ux * 0.4));
+      ctx.closePath();
+      ctx.fillStyle = `rgba(251, 191, 36, ${alpha})`;
+      ctx.fill();
+    }
+  }
+}
+
+// ---------- 绘制：轨迹 ----------
+function drawTrail() {
+  if (state.trail.length < 2) return;
+  const n = state.trail.length;
+  for (let i = 1; i < n; i++) {
+    const p0 = state.trail[i - 1];
+    const p1 = state.trail[i];
+    const [sx0, sy0] = physToScreen(p0.x, p0.y);
+    const [sx1, sy1] = physToScreen(p1.x, p1.y);
+    const t = i / n;
+    const alpha = Math.pow(t, 1.2);
+    if (alpha < 0.02) continue; // 跳过极淡段，减少绘制开销
+    const isPos = state.q >= 0;
+    const c = isPos
+      ? `rgba(56, 189, 248, ${alpha})`
+      : `rgba(167, 139, 250, ${alpha})`;
+    ctx.strokeStyle = c;
+    ctx.lineWidth = 1.5 + 1.5 * t;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(sx0, sy0);
+    ctx.lineTo(sx1, sy1);
+    ctx.stroke();
+  }
+}
+
+// ---------- 绘制：粒子 ----------
+function drawParticle() {
+  const [sx, sy] = physToScreen(state.x, state.y);
+  const isPos = state.q >= 0;
+  const color = isPos ? '#f472b6' : '#a78bfa';
+  const glow  = isPos ? 'rgba(244,114,182,0.5)' : 'rgba(167,139,250,0.5)';
+
+  // 外发光
+  const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, 22);
+  grad.addColorStop(0, glow);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 22, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 速度方向箭头
+  const speed = Math.hypot(state.vx, state.vy);
+  if (speed > 1e-6) {
+    const ux = state.vx / speed, uy = state.vy / speed;
+    const ax = sx + ux * 26;
+    const ay = sy - uy * 26;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ax, ay);
+    ctx.stroke();
+    const ang = Math.atan2(-uy, ux);
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - 8 * Math.cos(ang - 0.4), ay - 8 * Math.sin(ang - 0.4));
+    ctx.lineTo(ax - 8 * Math.cos(ang + 0.4), ay - 8 * Math.sin(ang + 0.4));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  // 粒子本体
+  ctx.beginPath();
+  ctx.arc(sx, sy, 7, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#fff';
+  ctx.stroke();
+
+  // 电荷符号
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(isPos ? '+' : '−', sx, sy + 0.5);
+}
+
+// ---------- 绘制：坐标轴 ----------
+function drawAxes() {
+  const rect = canvas.getBoundingClientRect();
+  const [ox, oy] = physToScreen(0, 0);
+  ctx.strokeStyle = 'rgba(148,163,184,0.15)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath();
+  ctx.moveTo(0, oy); ctx.lineTo(rect.width, oy);
+  ctx.moveTo(ox, 0); ctx.lineTo(ox, rect.height);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ---------- 绘制：理论回旋圆 ----------
+function drawTheoryCircle() {
+  if (!state.showCircle) return;
+  const omega_c = state.q * state.B / state.m; // 有符号的回旋频率
+  if (Math.abs(omega_c) < 1e-6) return; // 无磁场时不画
+
+  const speed = Math.hypot(state.vx, state.vy);
+  const r = speed / Math.abs(omega_c);
+
+  // 圆心位置：center_x = x - vy/ω_c, center_y = y + vx/ω_c
+  const centerX = state.x - state.vy / omega_c;
+  const centerY = state.y + state.vx / omega_c;
+
+  const [scx, scy] = physToScreen(centerX, centerY);
+  const rPx = r * state.scale;
+
+  // 圆
+  ctx.strokeStyle = 'rgba(74, 222, 128, 0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.arc(scx, scy, Math.max(1, rPx), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 圆心标记
+  ctx.beginPath();
+  ctx.arc(scx, scy, 3, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(74, 222, 128, 0.5)';
+  ctx.fill();
+
+  // 圆心到粒子的连线（半径方向）
+  const [sx, sy] = physToScreen(state.x, state.y);
+  ctx.strokeStyle = 'rgba(74, 222, 128, 0.18)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(scx, scy);
+  ctx.lineTo(sx, sy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ---------- 绘制：洛伦兹力矢量 ----------
+function drawForceVector() {
+  if (!state.showForce) return;
+
+  const [Fx, Fy] = computeForce();
+  const Fmag = Math.hypot(Fx, Fy);
+  if (Fmag < 1e-6) return;
+
+  const [sx, sy] = physToScreen(state.x, state.y);
+
+  // 缩放力矢量到合理显示长度（上限 45px）
+  const maxLen = 45;
+  // 用一个固定参考尺度来缩放，使力矢量的相对大小有意义
+  const refForce = Math.abs(state.q) * state.v0 * Math.abs(state.B);
+  const displayScale = refForce > 1e-6 ? Math.min(maxLen / refForce, 3) : 1;
+  const displayLen = Math.min(Fmag * displayScale, maxLen);
+
+  // 方向（屏幕坐标 y 翻转）
+  const dirSx = Fx;
+  const dirSy = -Fy;
+  const dirMag = Math.hypot(dirSx, dirSy);
+  if (dirMag < 1e-6) return;
+
+  const endX = sx + (dirSx / dirMag) * displayLen;
+  const endY = sy + (dirSy / dirMag) * displayLen;
+
+  // 箭头线
+  ctx.strokeStyle = '#fbbf24';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+
+  // 箭头头
+  const ang = Math.atan2(dirSy, dirSx);
+  ctx.beginPath();
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(endX - 8 * Math.cos(ang - 0.35), endY - 8 * Math.sin(ang - 0.35));
+  ctx.lineTo(endX - 8 * Math.cos(ang + 0.35), endY - 8 * Math.sin(ang + 0.35));
+  ctx.closePath();
+  ctx.fillStyle = '#fbbf24';
+  ctx.fill();
+
+  // 标签 "F"
+  const labelOffset = 10;
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('F', endX + labelOffset * Math.cos(ang + Math.PI / 2),
+                    endY + labelOffset * Math.sin(ang + Math.PI / 2));
+}
+
+// ---------- 绘制：E×B 漂移方向指示 ----------
+function drawDriftIndicator() {
+  if (!state.showDrift) return;
+  if (Math.abs(state.B) < 1e-9) return;
+  const Emag = Math.hypot(state.Ex, state.Ey);
+  if (Emag < 0.01) return;
+
+  const [driftX, driftY] = computeDriftVelocity();
+  const driftMag = Math.hypot(driftX, driftY);
+  if (driftMag < 1e-6) return;
+
+  const rect = canvas.getBoundingClientRect();
+  // 右下角指示器
+  const cx = rect.width - 70;
+  const cy = rect.height - 70;
+  const radius = 30;
+
+  // 背景圆
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(8, 12, 22, 0.72)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(251, 191, 36, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // 漂移方向箭头（屏幕坐标 y 翻转）
+  const dirSx = driftX;
+  const dirSy = -driftY;
+  const dirLen = Math.hypot(dirSx, dirSy);
+
+  const arrowLen = 22;
+  const endX = cx + (dirSx / dirLen) * arrowLen;
+  const endY = cy + (dirSy / dirLen) * arrowLen;
+
+  ctx.strokeStyle = '#fbbf24';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+
+  const ang = Math.atan2(dirSy, dirSx);
+  ctx.beginPath();
+  ctx.moveTo(endX, endY);
+  ctx.lineTo(endX - 6 * Math.cos(ang - 0.4), endY - 6 * Math.sin(ang - 0.4));
+  ctx.lineTo(endX - 6 * Math.cos(ang + 0.4), endY - 6 * Math.sin(ang + 0.4));
+  ctx.closePath();
+  ctx.fillStyle = '#fbbf24';
+  ctx.fill();
+
+  // 标签
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('E×B drift', cx, cy + radius + 4);
+
+  // 漂移速度数值
+  ctx.fillStyle = 'rgba(251, 191, 36, 0.7)';
+  ctx.font = '9px monospace';
+  ctx.fillText(driftMag.toFixed(2) + ' m/s', cx, cy + radius + 16);
+}
+
+// ---------- 主绘制 ----------
+function draw() {
+  const rect = canvas.getBoundingClientRect();
+  ctx.fillStyle = '#05070d';
+  ctx.fillRect(0, 0, rect.width, rect.height);
+  drawFieldBackground();
+  drawEFieldBackground();
+  drawAxes();
+  drawTheoryCircle();
+  drawTrail();
+  drawForceVector();
+  drawParticle();
+  drawDriftIndicator();
+}
+
+// ---------- 更新 UI 数值 ----------
+function updateInfo() {
+  valB.textContent = (state.B >= 0 ? '+' : '') + state.B.toFixed(2);
+  valQ.textContent = (state.q >= 0 ? '+' : '') + state.q.toFixed(2);
+  valM.textContent = state.m.toFixed(2);
+  valV.textContent = state.v0.toFixed(1);
+  valTheta.textContent = state.theta + '°';
+  valEx.textContent = (state.Ex >= 0 ? '+' : '') + state.Ex.toFixed(2);
+  valEy.textContent = (state.Ey >= 0 ? '+' : '') + state.Ey.toFixed(2);
+  valSpeed.textContent = state.animSpeed.toFixed(2) + 'x';
+
+  const w = computeOmega();
+  const T = computePeriod();
+  const r = computeRadius();
+  const dt = computeDt();
+  infoOmega.textContent = isFinite(w) ? w.toFixed(3) + ' rad/s' : '—';
+  infoT.textContent    = isFinite(T) ? T.toFixed(3) + ' s' : '∞';
+  infoR.textContent    = isFinite(r) ? r.toFixed(2) + ' m' : '∞';
+  infoDt.textContent   = isFinite(dt) ? dt.toFixed(4) + ' s' : '—';
+
+  // E×B 漂移速度
+  if (Math.abs(state.B) > 1e-9 && Math.hypot(state.Ex, state.Ey) > 0.01) {
+    const [dx, dy] = computeDriftVelocity();
+    const dmag = Math.hypot(dx, dy);
+    const dir = Math.atan2(dy, dx) * 180 / Math.PI;
+    infoDrift.textContent = dmag.toFixed(2) + ' m/s, ' + dir.toFixed(0) + '°';
+  } else {
+    infoDrift.textContent = '—';
+  }
+
+  // 洛伦兹力
+  const [Fx, Fy] = computeForce();
+  const Fmag = Math.hypot(Fx, Fy);
+  infoForce.textContent = Fmag.toFixed(2) + ' N';
+
+  // 磁场方向
+  if (state.B > 0)       statBdir.textContent = '⊙ 向外 (+Z)';
+  else if (state.B < 0)  statBdir.textContent = '⊗ 向内 (−Z)';
+  else                   statBdir.textContent = '— 无磁场';
+  statBdir.className = 'val ' + (state.B >= 0 ? 'positive' : 'negative');
+}
+
+function updateStats() {
+  const speed = Math.hypot(state.vx, state.vy);
+  statSpeed.textContent = speed.toFixed(2);
+  // 纯磁场时速度恒定，有 E 场时可变；变色提示
+  const v0 = state.v0;
+  const ratio = speed / v0;
+  if (ratio > 0.99 && ratio < 1.01 && Math.hypot(state.Ex, state.Ey) < 0.01) {
+    statSpeed.className = 'val ok';
+  } else {
+    statSpeed.className = 'val efield-val';
+  }
+  statX.textContent = state.x.toFixed(2);
+  statY.textContent = state.y.toFixed(2);
+  statEk.textContent = (0.5 * state.m * speed * speed).toFixed(1);
+  infoT2.textContent = state.t.toFixed(2) + ' s';
+}
+
+// ---------- 动画循环 ----------
+function loop() {
+  if (state.running) {
+    const dt = computeDt();
+    const stepsPerFrame = Math.max(1, Math.round(0.02 / dt * state.animSpeed));
+    for (let i = 0; i < stepsPerFrame; i++) step();
+  }
+  // 自动跟随（平滑插值，而非立即跳变）
+  if (state.autoFollow) {
+    // 运行中快速跟随（粒子保持在屏幕近中心）；暂停时慢跟随（点击后粒子先出现在点击处，视图渐居中）
+    const factor = state.running ? 0.25 : 0.06;
+    state.cx += (state.x - state.cx) * factor;
+    state.cy += (state.y - state.cy) * factor;
+  }
+  updateStats();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ---------- 控件事件 ----------
+function bindSlider(slider, key, parser) {
+  slider.addEventListener('input', () => {
+    state[key] = parser(slider.value);
+    // 速率改变时同步当前速度方向上的大小
+    if (key === 'v0') {
+      const cur = Math.hypot(state.vx, state.vy);
+      if (cur > 1e-6) {
+        state.vx = state.vx / cur * state.v0;
+        state.vy = state.vy / cur * state.v0;
+      } else {
+        const thetaRad = state.theta * Math.PI / 180;
+        state.vx = state.v0 * Math.cos(thetaRad);
+        state.vy = state.v0 * Math.sin(thetaRad);
+      }
+    }
+    // θ 改变时不直接修改当前速度（仅影响下次重置/点击）
+    // 参数变化时重新自适应缩放
+    if (key === 'B' || key === 'q' || key === 'm' || key === 'v0') {
+      const r = computeRadius();
+      const rect = canvas.getBoundingClientRect();
+      const targetPx = Math.min(rect.width, rect.height) * 0.22;
+      if (isFinite(r) && r > 1e-6) state.scale = Math.max(0.5, targetPx / r);
+    }
+    updateInfo();
+  });
+}
+bindSlider(sliderB, 'B', parseFloat);
+bindSlider(sliderQ, 'q', parseFloat);
+bindSlider(sliderM, 'm', parseFloat);
+bindSlider(sliderV, 'v0', parseFloat);
+bindSlider(sliderTheta, 'theta', parseInt);
+bindSlider(sliderEx, 'Ex', parseFloat);
+bindSlider(sliderEy, 'Ey', parseFloat);
+
+sliderSpeed.addEventListener('input', () => {
+  state.animSpeed = parseFloat(sliderSpeed.value);
+  valSpeed.textContent = state.animSpeed.toFixed(2) + 'x';
+});
+
+chkCircle.addEventListener('change', () => { state.showCircle = chkCircle.checked; });
+chkForce.addEventListener('change', () => { state.showForce = chkForce.checked; });
+chkDrift.addEventListener('change', () => { state.showDrift = chkDrift.checked; });
+chkFollow.addEventListener('change', () => { state.autoFollow = chkFollow.checked; });
+
+btnToggle.addEventListener('click', () => {
+  state.running = !state.running;
+  toggleIcon.textContent = state.running ? '⏸' : '▶';
+  toggleText.textContent = state.running ? '暂停' : '继续';
+});
+
+btnReset.addEventListener('click', () => {
+  state.running = false;
+  toggleIcon.textContent = '▶';
+  toggleText.textContent = '开始';
+  resetParticle();
+});
+
+// 键盘快捷键
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); btnToggle.click(); }
+  else if (e.key === 'r' || e.key === 'R') { btnReset.click(); }
+});
+
+// ---------- 鼠标交互：缩放 + 平移 + 点击定位 ----------
+let isDragging = false;
+let dragMoved = false;
+let dragLastX = 0, dragLastY = 0;
+
+// 滚轮缩放
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 0.92 : 1.08;
+  state.scale *= factor;
+  state.scale = Math.max(0.1, Math.min(200, state.scale));
+}, { passive: false });
+
+// 鼠标按下
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button === 0) {
+    isDragging = true;
+    dragMoved = false;
+    dragLastX = e.clientX;
+    dragLastY = e.clientY;
+  }
+});
+
+// 鼠标移动（拖拽平移）
+canvas.addEventListener('mousemove', (e) => {
+  if (isDragging && !state.autoFollow) {
+    const dx = e.clientX - dragLastX;
+    const dy = e.clientY - dragLastY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
+    if (dragMoved) {
+      state.cx -= dx / state.scale;
+      state.cy += dy / state.scale; // y 翻转
+      dragLastX = e.clientX;
+      dragLastY = e.clientY;
+    }
+  }
+});
+
+// 鼠标松开（区分点击与拖拽）
+window.addEventListener('mouseup', (e) => {
+  if (!isDragging) return;
+  isDragging = false;
+  if (!dragMoved && e.button === 0) {
+    // 点击：设置粒子初始位置
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    state.x = (sx - rect.width / 2) / state.scale + state.cx;
+    state.y = -(sy - rect.height / 2) / state.scale + state.cy;
+    state.trail = [];
+    state.t = 0;
+    const thetaRad = state.theta * Math.PI / 180;
+    state.vx = state.v0 * Math.cos(thetaRad);
+    state.vy = state.v0 * Math.sin(thetaRad);
+  }
+});
+
+// ---------- 启动 ----------
+resizeCanvas();
+resetParticle();
+updateInfo();
+updateStats();
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>

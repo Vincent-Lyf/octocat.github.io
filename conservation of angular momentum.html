@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>角动量守恒 · 增强版 · 多变量演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #f0f4f8;
+            color: #1a2332;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 20, 40, 0.15);
+            padding: 28px 32px 32px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #e8edf3;
+            padding-bottom: 12px;
+        }
+        .header h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #0b2a4a;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header h1 small {
+            font-size: 16px;
+            font-weight: 400;
+            color: #4a6a8a;
+        }
+        .header .badge {
+            background: #1e4a7a;
+            color: #fff;
+            padding: 4px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .canvas-wrapper {
+            background: #fafcff;
+            border-radius: 16px;
+            border: 1px solid #dce4ed;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        #simCanvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: #fafcff;
+            cursor: default;
+        }
+        .data-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 6px 12px;
+            background: #f2f6fc;
+            border-radius: 12px;
+            padding: 10px 18px;
+            margin: 10px 0 14px;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid #dce4ed;
+        }
+        .data-item {
+            display: flex;
+            align-items: baseline;
+            gap: 3px;
+            white-space: nowrap;
+        }
+        .data-item .label {
+            color: #3a5a7a;
+            font-weight: 400;
+        }
+        .data-item .value {
+            font-weight: 700;
+            color: #0b2a4a;
+            min-width: 44px;
+            font-variant-numeric: tabular-nums;
+        }
+        .data-item .unit {
+            color: #4a6a8a;
+            font-weight: 400;
+            font-size: 12px;
+        }
+        .data-item.highlight .value {
+            color: #c0392b;
+        }
+        .data-item.highlight-blue .value {
+            color: #1a6bb0;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px 20px;
+            background: #f7faff;
+            border-radius: 14px;
+            padding: 14px 20px;
+            border: 1px solid #dce4ed;
+            margin-bottom: 14px;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 6px 10px;
+            flex-wrap: wrap;
+        }
+        .control-group label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #1a3a5a;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .control-group input[type="range"] {
+            width: 100px;
+            height: 4px;
+            -webkit-appearance: none;
+            background: #b8cada;
+            border-radius: 4px;
+            outline: none;
+        }
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #1e6bb0;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 4px rgba(0, 20, 40, 0.25);
+        }
+        .control-group input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #1e6bb0;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 4px rgba(0, 20, 40, 0.25);
+        }
+        .control-group .val {
+            font-weight: 700;
+            color: #0b2a4a;
+            min-width: 32px;
+            font-size: 14px;
+            text-align: center;
+        }
+        .control-group select,
+        .control-group input[type="checkbox"] {
+            margin-left: 4px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            border: 1px solid #b8cada;
+            font-size: 13px;
+            background: #fff;
+        }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #ffffff;
+            border: 1px solid #b8cada;
+            padding: 5px 16px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #1a3a5a;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn:hover {
+            background: #e8eff8;
+            border-color: #8aaac8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 20, 40, 0.08);
+        }
+        .btn.primary {
+            background: #1a6bb0;
+            border-color: #1a6bb0;
+            color: #fff;
+        }
+        .btn.primary:hover {
+            background: #0f5a9a;
+            border-color: #0f5a9a;
+        }
+        .btn.danger {
+            background: #c0392b;
+            border-color: #c0392b;
+            color: #fff;
+        }
+        .btn.danger:hover {
+            background: #a93226;
+            border-color: #a93226;
+        }
+        .btn.success {
+            background: #27ae60;
+            border-color: #27ae60;
+            color: #fff;
+        }
+        .btn.success:hover {
+            background: #1e8449;
+            border-color: #1e8449;
+        }
+        .btn.warning {
+            background: #f39c12;
+            border-color: #f39c12;
+            color: #fff;
+        }
+        .btn.warning:hover {
+            background: #d68910;
+            border-color: #d68910;
+        }
+        .footer-note {
+            text-align: center;
+            font-size: 13px;
+            color: #6a8aaa;
+            padding-top: 10px;
+            border-top: 1px solid #e8edf3;
+            margin-top: 12px;
+            line-height: 1.6;
+        }
+        .footer-note strong {
+            color: #1a4a7a;
+        }
+        @media (max-width: 800px) {
+            .container {
+                padding: 16px;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .btn-group {
+                margin-left: 0;
+                justify-content: center;
+            }
+            .data-bar {
+                font-size: 12px;
+                padding: 8px 12px;
+                justify-content: center;
+            }
+            .header h1 {
+                font-size: 20px;
+            }
+            .control-group input[type="range"] {
+                width: 80px;
+            }
+        }
+        @media (max-width: 480px) {
+            .data-item .value {
+                min-width: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>
+                🔄 角动量守恒 <small>增强版 · 多变量</small>
+            </h1>
+            <span class="badge">物理 · AI 编程</span>
+        </div>
+
+        <div class="canvas-wrapper">
+            <canvas id="simCanvas" width="700" height="420"></canvas>
+        </div>
+
+        <div class="data-bar">
+            <div class="data-item highlight-blue">
+                <span class="label">半径 r</span>
+                <span class="value" id="dR">1.00</span><span class="unit">m</span>
+            </div>
+            <div class="data-item highlight">
+                <span class="label">角速度 ω</span>
+                <span class="value" id="dOmega">0.00</span><span class="unit">rad/s</span>
+            </div>
+            <div class="data-item">
+                <span class="label">转动惯量 I</span>
+                <span class="value" id="dI">0.00</span><span class="unit">kg·m²</span>
+            </div>
+            <div class="data-item">
+                <span class="label">角动量 L</span>
+                <span class="value" id="dL">0.00</span><span class="unit">kg·m²/s</span>
+            </div>
+            <div class="data-item">
+                <span class="label">线速度 v</span>
+                <span class="value" id="dV">0.00</span><span class="unit">m/s</span>
+            </div>
+            <div class="data-item">
+                <span class="label">动能 K</span>
+                <span class="value" id="dK">0.00</span><span class="unit">J</span>
+            </div>
+            <div class="data-item">
+                <span class="label">周期 T</span>
+                <span class="value" id="dT">0.00</span><span class="unit">s</span>
+            </div>
+            <div class="data-item">
+                <span class="label">向心力 F</span>
+                <span class="value" id="dF">0.00</span><span class="unit">N</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>半径 r</label>
+                <input type="range" id="rSlider" min="0.3" max="3.5" step="0.01" value="1.5" />
+                <span class="val" id="rVal">1.50</span>
+            </div>
+            <div class="control-group">
+                <label>质量 m</label>
+                <input type="range" id="mSlider" min="0.2" max="5.0" step="0.1" value="1.0" />
+                <span class="val" id="mVal">1.0</span>
+            </div>
+            <div class="control-group">
+                <label>初始 ω₀</label>
+                <input type="range" id="w0Slider" min="0.5" max="5.0" step="0.1" value="2.0" />
+                <span class="val" id="w0Val">2.0</span>
+            </div>
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="autoSweep" /> 自动扫掠半径
+                </label>
+            </div>
+            <div class="btn-group">
+                <button class="btn success" id="btnPlayPause">▶ 运行</button>
+                <button class="btn danger" id="btnReset">⟳ 重置</button>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            <strong>模型假设：</strong> 质点绕固定轴转动，无外力矩，角动量 <em>L = m r² ω</em> 守恒。
+            初始角动量由 <em>m</em>、<em>r</em>、<em>ω₀</em> 决定。开启“自动扫掠半径”时，半径将在 0.3~3.5m 间正弦变化，
+            角速度随之自适应，生动展示守恒律。所有物理量实时更新。
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        //  角动量守恒仿真 —— 增强版 (多变量)
+        //  新增：初始角速度调节、自动扫掠半径、周期/向心力显示
+        // ================================================================
+
+        // -------- DOM 引用 --------
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const rSlider = document.getElementById('rSlider');
+        const mSlider = document.getElementById('mSlider');
+        const w0Slider = document.getElementById('w0Slider');
+        const rVal = document.getElementById('rVal');
+        const mVal = document.getElementById('mVal');
+        const w0Val = document.getElementById('w0Val');
+        const autoSweep = document.getElementById('autoSweep');
+        const btnPlayPause = document.getElementById('btnPlayPause');
+        const btnReset = document.getElementById('btnReset');
+
+        const dR = document.getElementById('dR');
+        const dOmega = document.getElementById('dOmega');
+        const dI = document.getElementById('dI');
+        const dL = document.getElementById('dL');
+        const dV = document.getElementById('dV');
+        const dK = document.getElementById('dK');
+        const dT = document.getElementById('dT');
+        const dF = document.getElementById('dF');
+
+        // -------- 物理参数 --------
+        let m = 1.0;
+        let r = 1.5;
+        let omega0 = 2.0; // 初始角速度 (用于计算初始角动量)
+        let omega = 2.0;
+        let L0 = 1.0; // 初始角动量，将在 init 中计算
+
+        // 状态
+        let angle = 0.0;
+        let running = false;
+        let animId = null;
+        let lastTimestamp = 0;
+
+        // 自动扫掠参数
+        let sweepTime = 0.0;
+        const sweepPeriod = 6.0; // 扫掠周期 (秒)
+        const rMin = 0.3;
+        const rMax = 3.5;
+
+        // 常量
+        const dt = 0.004;
+
+        // -------- 物理更新 --------
+        function updatePhysics(dt) {
+            // 如果开启自动扫掠，更新半径
+            if (autoSweep.checked) {
+                sweepTime += dt;
+                // 正弦变化: r = r_mid + amp * sin(2π t / T)
+                const mid = (rMin + rMax) / 2;
+                const amp = (rMax - rMin) / 2;
+                r = mid + amp * Math.sin(2 * Math.PI * sweepTime / sweepPeriod);
+                // 限制边界
+                r = Math.min(rMax, Math.max(rMin, r));
+                // 更新滑块显示 (但不触发滑块事件)
+                rSlider.value = r;
+                rVal.textContent = r.toFixed(2);
+            } else {
+                // 手动模式：从滑块读取
+                r = parseFloat(rSlider.value);
+                m = parseFloat(mSlider.value);
+                rVal.textContent = r.toFixed(2);
+                mVal.textContent = m.toFixed(1);
+            }
+
+            // 角动量守恒: L = m * r^2 * ω = 常数
+            const I = m * r * r;
+            omega = L0 / I;
+            // 更新角度
+            angle += omega * dt;
+            if (angle > 2 * Math.PI) angle -= 2 * Math.PI;
+            if (angle < 0) angle += 2 * Math.PI;
+        }
+
+        // -------- 绘图 --------
+        function drawScene() {
+            const W = canvas.width;
+            const H = canvas.height;
+            ctx.clearRect(0, 0, W, H);
+
+            const centerX = W / 2;
+            const centerY = H / 2;
+            const scale = 70; // px per meter
+
+            // 背景网格
+            ctx.save();
+            ctx.strokeStyle = '#e8edf3';
+            ctx.lineWidth = 0.5;
+            for (let rad = 0.5; rad <= 4.0; rad += 0.5) {
+                const px = rad * scale;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, px, 0, 2 * Math.PI);
+                ctx.stroke();
+                ctx.fillStyle = '#b0c4d8';
+                ctx.font = '9px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(rad.toFixed(1) + 'm', centerX + px + 3, centerY + 2);
+            }
+            for (let deg = 0; deg < 360; deg += 30) {
+                const rad = deg * Math.PI / 180;
+                const x = centerX + 3.8 * scale * Math.cos(rad);
+                const y = centerY + 3.8 * scale * Math.sin(rad);
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // 质点位置
+            const px = centerX + r * scale * Math.cos(angle);
+            const py = centerY + r * scale * Math.sin(angle);
+
+            // 轨迹圆 (当前半径)
+            ctx.save();
+            ctx.setLineDash([5, 7]);
+            ctx.strokeStyle = '#2c7bb6';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, r * scale, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.restore();
+
+            // 半径线
+            ctx.save();
+            ctx.strokeStyle = '#1a6bb0';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(px, py);
+            ctx.stroke();
+            ctx.restore();
+
+            // 质点 (带光晕)
+            const radiusPx = 14;
+            const grad = ctx.createRadialGradient(px - 3, py - 3, 2, px, py, radiusPx + 12);
+            grad.addColorStop(0, '#e74c3c');
+            grad.addColorStop(0.7, '#c0392b');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.save();
+            ctx.shadowColor = '#e74c3c';
+            ctx.shadowBlur = 22;
+            ctx.beginPath();
+            ctx.arc(px, py, radiusPx + 6, 0, 2 * Math.PI);
+            ctx.fillStyle = grad;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.arc(px, py, radiusPx, 0, 2 * Math.PI);
+            ctx.fillStyle = '#e74c3c';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+
+            // 速度矢量
+            const v = omega * r;
+            const vScale = 10;
+            const vx = -v * Math.sin(angle) * vScale;
+            const vy = v * Math.cos(angle) * vScale;
+            ctx.save();
+            ctx.strokeStyle = '#e67e22';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(px + vx, py + vy);
+            ctx.stroke();
+            const aLen = 8,
+                aAng = 0.6;
+            const ang = Math.atan2(vy, vx);
+            ctx.fillStyle = '#e67e22';
+            ctx.beginPath();
+            ctx.moveTo(px + vx, py + vy);
+            ctx.lineTo(px + vx - aLen * Math.cos(ang - aAng), py + vy - aLen * Math.sin(ang - aAng));
+            ctx.lineTo(px + vx - aLen * Math.cos(ang + aAng), py + vy - aLen * Math.sin(ang + aAng));
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+            ctx.save();
+            ctx.fillStyle = '#e67e22';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText('v', px + vx + 6, py + vy - 4);
+            ctx.restore();
+
+            // 标注 r
+            ctx.save();
+            ctx.fillStyle = '#1a6bb0';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            const midX = (centerX + px) / 2;
+            const midY = (centerY + py) / 2;
+            ctx.fillText('r', midX + 10, midY - 4);
+            ctx.restore();
+
+            // 角速度弧线
+            if (Math.abs(omega) > 0.01) {
+                ctx.save();
+                ctx.strokeStyle = '#8e44ad';
+                ctx.lineWidth = 1.8;
+                const arcR = 30;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, arcR, 0, Math.min(0.8, Math.abs(omega) * 0.25));
+                ctx.stroke();
+                ctx.fillStyle = '#8e44ad';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+                ctx.fillText('ω', centerX + arcR + 4, centerY - 10);
+                ctx.restore();
+            }
+
+            // 中心点
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 4, 0, 2 * Math.PI);
+            ctx.fillStyle = '#2c3e50';
+            ctx.fill();
+            ctx.restore();
+
+            // 左上信息
+            ctx.save();
+            ctx.fillStyle = '#1a3a5a';
+            ctx.font = '13px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`L = ${L0.toFixed(3)} kg·m²/s  (守恒)`, 12, 12);
+            ctx.fillText(`ω = ${omega.toFixed(2)} rad/s`, 12, 34);
+            ctx.fillText(`r = ${r.toFixed(2)} m`, 12, 56);
+            if (autoSweep.checked) {
+                ctx.fillStyle = '#27ae60';
+                ctx.fillText('🔄 自动扫掠半径', 12, 80);
+            }
+            ctx.restore();
+
+            // 更新数据面板
+            const I = m * r * r;
+            const vLin = omega * r;
+            const K = 0.5 * I * omega * omega;
+            const T = (Math.abs(omega) > 0.001) ? 2 * Math.PI / Math.abs(omega) : Infinity;
+            const F = m * omega * omega * r;
+            dR.textContent = r.toFixed(2);
+            dOmega.textContent = omega.toFixed(2);
+            dI.textContent = I.toFixed(3);
+            dL.textContent = L0.toFixed(3);
+            dV.textContent = vLin.toFixed(2);
+            dK.textContent = K.toFixed(2);
+            dT.textContent = isFinite(T) ? T.toFixed(3) : '∞';
+            dF.textContent = F.toFixed(2);
+        }
+
+        // -------- 更新循环 --------
+        function updateAndDraw() {
+            if (running) {
+                // 读取质量 (手动模式时半径在updatePhysics中读取)
+                if (!autoSweep.checked) {
+                    m = parseFloat(mSlider.value);
+                    mVal.textContent = m.toFixed(1);
+                }
+                updatePhysics(dt);
+                drawScene();
+            }
+        }
+
+        // -------- 动画循环 --------
+        function animate(timestamp) {
+            if (!running) {
+                animId = null;
+                return;
+            }
+            if (!lastTimestamp) lastTimestamp = timestamp;
+            let elapsed = (timestamp - lastTimestamp) / 1000;
+            lastTimestamp = timestamp;
+            if (elapsed > 0.05) elapsed = 0.05;
+
+            const steps = Math.floor(elapsed / dt) + 1;
+            for (let i = 0; i < steps; i++) {
+                updateAndDraw();
+            }
+
+            animId = requestAnimationFrame(animate);
+        }
+
+        // -------- 控制函数 --------
+        function startSim() {
+            if (running) return;
+            running = true;
+            lastTimestamp = 0;
+            btnPlayPause.textContent = '⏸ 暂停';
+            btnPlayPause.className = 'btn primary';
+            if (!animId) {
+                animId = requestAnimationFrame(animate);
+            }
+        }
+
+        function pauseSim() {
+            if (!running) return;
+            running = false;
+            btnPlayPause.textContent = '▶ 运行';
+            btnPlayPause.className = 'btn success';
+            if (animId) {
+                cancelAnimationFrame(animId);
+                animId = null;
+            }
+        }
+
+        function togglePlayPause() {
+            if (running) pauseSim();
+            else startSim();
+        }
+
+        function resetSim() {
+            pauseSim();
+            angle = 0.0;
+            sweepTime = 0.0;
+            // 重置滑块到初始值
+            rSlider.value = '1.5';
+            mSlider.value = '1.0';
+            w0Slider.value = '2.0';
+            r = 1.5;
+            m = 1.0;
+            omega0 = 2.0;
+            rVal.textContent = r.toFixed(2);
+            mVal.textContent = m.toFixed(1);
+            w0Val.textContent = omega0.toFixed(1);
+            // 重新计算角动量
+            const I0 = m * r * r;
+            L0 = I0 * omega0;
+            omega = L0 / I0;
+            // 若自动扫掠开启，重置其状态
+            if (autoSweep.checked) {
+                // 半径将由扫掠更新
+            }
+            drawScene();
+        }
+
+        // -------- 滑块事件 --------
+        function onSliderChange() {
+            if (!autoSweep.checked) {
+                r = parseFloat(rSlider.value);
+                m = parseFloat(mSlider.value);
+                rVal.textContent = r.toFixed(2);
+                mVal.textContent = m.toFixed(1);
+                // 如果暂停，立即更新物理
+                if (!running) {
+                    const I = m * r * r;
+                    omega = L0 / I;
+                    drawScene();
+                }
+            }
+        }
+
+        function onW0Change() {
+            omega0 = parseFloat(w0Slider.value);
+            w0Val.textContent = omega0.toFixed(1);
+            // 重新计算初始角动量 (基于当前r,m)
+            if (!running) {
+                const I = m * r * r;
+                L0 = I * omega0;
+                omega = L0 / I;
+                drawScene();
+            } else {
+                // 运行时改变初始值会影响L0，但为了保持守恒，需要立即更新L0并调整omega
+                // 但通常用户期望改变初始ω₀后，角动量改变，当前转速随之变化
+                // 我们直接重新计算L0并更新omega
+                const I = m * r * r;
+                L0 = I * omega0;
+                omega = L0 / I;
+                // 显示更新会在下一帧
+            }
+        }
+
+        rSlider.addEventListener('input', onSliderChange);
+        mSlider.addEventListener('input', onSliderChange);
+        w0Slider.addEventListener('input', onW0Change);
+
+        // 自动扫掠开启时，禁用半径滑块? 但为了UI友好，我们不禁止，但自动模式会覆盖其值
+        autoSweep.addEventListener('change', function() {
+            if (this.checked) {
+                // 重置扫掠时间，使半径从当前值开始
+                sweepTime = 0.0;
+                // 从当前半径开始扫掠
+                r = parseFloat(rSlider.value);
+                // 更新L0以适应当前状态 (保持当前角动量不变)
+                const I = m * r * r;
+                omega = L0 / I;
+                // 但为了平滑，我们让L0保持原值
+            } else {
+                // 切回手动模式，读取滑块值
+                r = parseFloat(rSlider.value);
+                m = parseFloat(mSlider.value);
+                rVal.textContent = r.toFixed(2);
+                mVal.textContent = m.toFixed(1);
+                const I = m * r * r;
+                omega = L0 / I;
+                drawScene();
+            }
+        });
+
+        // -------- 按钮事件 --------
+        btnPlayPause.addEventListener('click', togglePlayPause);
+        btnReset.addEventListener('click', resetSim);
+
+        // -------- 初始化 --------
+        function init() {
+            rSlider.value = '1.5';
+            mSlider.value = '1.0';
+            w0Slider.value = '2.0';
+            r = 1.5;
+            m = 1.0;
+            omega0 = 2.0;
+            rVal.textContent = r.toFixed(2);
+            mVal.textContent = m.toFixed(1);
+            w0Val.textContent = omega0.toFixed(1);
+            const I0 = m * r * r;
+            L0 = I0 * omega0;
+            omega = L0 / I0;
+            angle = 0.0;
+            sweepTime = 0.0;
+            drawScene();
+            // 自动运行
+            startSim();
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
